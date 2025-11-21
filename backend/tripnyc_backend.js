@@ -9,6 +9,7 @@ const express = require('express');
 const cors = require('cors');
 const { Pool } = require('pg');
 const fs = require('fs');
+const QUERIES = require('./queries');
 const app = express();
 const PORT = 3001;
 
@@ -42,6 +43,37 @@ pool.on('connect', () => {
 pool.on('error', (err) => {
   console.error('Unexpected error on idle client', err);
 });
+
+
+const queryWavFulfillmentRate = async () => {
+  try {
+    const result = await pool.query(QUERIES.GET_WAV_FULFILLMENT_RATE);
+    return result.rows;
+  } catch (err) {
+    console.error("Database query error in queryWavFulfillmentRate:", err);
+    throw new Error("Failed to retrieve WAV fulfillment data.");
+  }
+};
+
+const queryWavRequestPercentage = async () => {
+  try {
+    const result = await pool.query(QUERIES.GET_WAV_REQUEST_PERCENTAGE);
+    return result.rows;
+  } catch (err) {
+    console.error("Database query error in queryWavRequestPercentage:", err);
+    throw new Error("Failed to retrieve WAV request percentage data.");
+  }
+};
+
+const queryWavWaitTime = async () => {
+  try {
+    const result = await pool.query(QUERIES.GET_WAV_WAIT_TIME);
+    return result.rows;
+  } catch (err) {
+    console.error("Database query error in queryWavWaitTime:", err);
+    throw new Error("Failed to retrieve WAV wait time data.");
+  }
+};
 
 
 // --- API Endpoints ---
@@ -459,6 +491,53 @@ app.post('/api/route-hotspots', async (req, res) => {
   } catch (error) {
     console.error('Failed to fetch route hotspots:', error.message);
     res.status(500).json({ error: error.message || 'Internal server error while fetching route hotspots.' });
+  }
+});
+
+
+app.get('/api/accessibility-report', async (req, res) => {
+  console.log('[API CALL] Accessibility Report requested. Running two queries...');
+
+  try {
+    const [fulfillmentData, requestPercentageData, waitTimeData] = await Promise.all([
+      queryWavFulfillmentRate(),
+      queryWavRequestPercentage(),
+      queryWavWaitTime()
+    ]);
+
+    const wavFulfillment = fulfillmentData.map(row => ({
+      provider: row.service_provider,
+      fulfillmentRate: parseFloat(row.fulfillment_percentage || 0),
+      totalRequests: parseInt(row.total_wav_requests || 0, 10),
+    }));
+
+    const requestPercentages = requestPercentageData.map(row => ({
+        provider: row.service_provider,
+        percentOfWavRequest: parseFloat(row.percent_of_wav_request || 0),
+        totalTrips: parseInt(row.total_trips || 0, 10),
+    }));
+
+    const waitTime = waitTimeData.map(row => ({
+        provider: row.service_provider,
+        avgWavWait: parseFloat(row.avg_wav_wait_sec || 0),
+        avgNonWavWait: parseFloat(row.avg_non_wav_wait_sec || 0),
+    }));
+
+
+    // Combine results into a comprehensive report
+    const report = {
+      wavFulfillment: wavFulfillment,
+      requestPercentages: requestPercentages,
+      waitTime: waitTime
+    };
+
+    setTimeout(() => {
+      res.json(report);
+    }, 1200);
+
+  } catch (error) {
+    console.error("Failed to process accessibility report:", error.message);
+    res.status(500).json({ error: error.message || "Internal server error during data fetching." });
   }
 });
 
