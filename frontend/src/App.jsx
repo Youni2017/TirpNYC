@@ -1,11 +1,22 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Plane, Compass, BarChart, MapPin, Bus, Car } from 'lucide-react';
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from 'recharts';
 
 const TLC_ZONES = [
   { id: 1, name: "Newark Airport" },
   { id: 4, name: "Central Park" },
   { id: 10, name: "Midtown Center" },
   { id: 24, name: "JFK Airport" },
+  { id: 70, name: "Zone 70" }, 
 ]; // to be get from databse later
 
 
@@ -37,9 +48,26 @@ const fetchTripEstimate = async (params) => {
 };
 
 
-const fetchTrafficData = async (params) => {
-  console.log('Fetching traffic data for Zone:', params.zoneId);
-  // TODO
+const fetchTrafficData = async ({ zoneId }) => {
+  console.log('Fetching traffic data for Zone:', zoneId);
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/traffic-dashboard?locationId=${encodeURIComponent(zoneId)}`
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`HTTP error! Status: ${response.status}. Message: ${errorText}`);
+    }
+
+    const data = await response.json();
+
+    const rows = Array.isArray(data) ? data : data.rows || [];
+    return rows;
+  } catch (error) {
+    console.error('API Error in fetchTrafficData:', error);
+    throw error;
+  }
 };
 
 // TODO the api call for the route hotspot and accessibility page
@@ -77,32 +105,201 @@ const TripPlannerPage = () => {
   );
 };
 
-const TrafficDashboardPage = () => {
+const TrafficDashboardPage = ({ trafficData, loading, handleFetchTraffic }) => {
+  const [selectedZoneId, setSelectedZoneId] = useState(70);
+  const [error, setError] = useState('');
+  const [viewMode, setViewMode] = useState('both'); // 'both' | 'workday' | 'weekend'
+
+  const handleLoadClick = async () => {
+    setError('');
+    try {
+      await handleFetchTraffic({ zoneId: selectedZoneId });
+    } catch (err) {
+      setError(err.message || 'Failed to load traffic data');
+    }
+  };
+
+
+  const chartData = (trafficData || []).map((row) => ({
+    hour: row.hour_of_day,
+    workday: Number(row.avg_workday_trips ?? 0),
+    weekend: Number(row.avg_weekend_trips ?? 0),
+  }));
+
   return (
     <div className="space-y-6 p-2">
       <h2 className="text-2xl font-bold text-gray-800">Traffic Dashboard</h2>
-      <p className="text-sm text-gray-600">View vehicle inflow/outflow trends by zone and time.</p>
+      <p className="text-sm text-gray-600">
+        View average hourly inflow/outflow (in &amp; out combined) for a given zone, comparing workdays vs weekends.
+      </p>
 
-      {/* Placeholder for Input Form */}
+      {/*  */}
       <div className="bg-gray-100 p-4 rounded-xl shadow border border-gray-200">
-        <div className="flex flex-col space-y-3">
-          <div className="p-3 bg-white rounded-lg border border-gray-300 text-gray-500">
-            Input Placeholder: Select Zone for Analysis
+        <div className="flex flex-col md:flex-row md:items-center md:space-x-4 space-y-3 md:space-y-0">
+          <div className="flex-1">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Select TLC Zone
+            </label>
+            <select
+              className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm"
+              value={selectedZoneId}
+              onChange={(e) => setSelectedZoneId(Number(e.target.value))}
+            >
+              {TLC_ZONES.map((z) => (
+                <option key={z.id} value={z.id}>
+                  {z.name} (ID: {z.id})
+                </option>
+              ))}
+            </select>
           </div>
-          <button className="w-full bg-purple-400 text-white p-3 rounded-lg flex items-center justify-center font-semibold cursor-not-allowed opacity-75">
+
+          <button
+            onClick={handleLoadClick}
+            disabled={loading}
+            className={`w-full md:w-auto bg-purple-500 text-white px-4 py-2 rounded-lg flex items-center justify-center font-semibold
+              ${loading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-purple-600 cursor-pointer'}
+            `}
+          >
             <BarChart className="h-5 w-5 mr-2" />
-            LOAD TREND DATA (Static Button)
+            {loading ? 'Loading...' : 'LOAD TREND DATA'}
           </button>
         </div>
+
+        {error && (
+          <p className="mt-2 text-sm text-red-600">
+            Error: {error}
+          </p>
+        )}
       </div>
 
-      {/* Placeholder for Results */}
-      <div className="mt-4">
-        <h3 className="text-xl font-semibold text-gray-700 mb-3">Trends (Placeholder)</h3>
-        <div className="bg-white p-4 rounded-lg shadow border border-purple-200 h-24 flex items-center justify-center text-gray-500">
-            Traffic visualization chart will be embedded here.
+      {/* graph region */}
+      <div className="bg-white p-4 rounded-lg shadow border border-purple-200">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-3 space-y-2 md:space-y-0">
+          <h3 className="text-xl font-semibold text-gray-700">
+            Hourly Average Traffic (Zone {selectedZoneId})
+          </h3>
+
+          {/* Workday / Weekend option */}
+          <div className="inline-flex rounded-lg border border-gray-200 bg-gray-50 overflow-hidden text-xs">
+            <button
+              className={`px-3 py-1 ${
+                viewMode === 'both'
+                  ? 'bg-purple-500 text-white'
+                  : 'text-gray-700 hover:bg-gray-100'
+              }`}
+              onClick={() => setViewMode('both')}
+            >
+              Both
+            </button>
+            <button
+              className={`px-3 py-1 ${
+                viewMode === 'workday'
+                  ? 'bg-purple-500 text-white'
+                  : 'text-gray-700 hover:bg-gray-100'
+              }`}
+              onClick={() => setViewMode('workday')}
+            >
+              Workday
+            </button>
+            <button
+              className={`px-3 py-1 ${
+                viewMode === 'weekend'
+                  ? 'bg-purple-500 text-white'
+                  : 'text-gray-700 hover:bg-gray-100'
+              }`}
+              onClick={() => setViewMode('weekend')}
+            >
+              Weekend
+            </button>
+          </div>
         </div>
+
+        {loading && (
+          <div className="text-gray-600 text-sm">Loading traffic data...</div>
+        )}
+
+        {!loading && chartData && chartData.length > 0 && (
+          <div style={{ width: '100%', height: 320 }}>
+            <ResponsiveContainer>
+              <LineChart data={chartData} margin={{ top: 20, right: 24, left:48, bottom: 40 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis
+                  dataKey="hour"
+                  label={{ value: 'Hour of Day', position: 'insideBottom', offset: -4 }}
+                  tickMargin={6}
+                />
+                <YAxis
+                  label={{ value: 'Avg Trips', angle: -90, position: 'insideLeft' }}
+                  tickMargin={6}
+                />
+                <Tooltip />
+                <Legend />
+                {(viewMode === 'both' || viewMode === 'workday') && (
+                  <Line
+                    type="monotone"
+                    dataKey="workday"
+                    name="Workday"
+                    stroke="#6366F1"
+                    strokeWidth={2}
+                    dot={false}
+                  />
+                )}
+                {(viewMode === 'both' || viewMode === 'weekend') && (
+                  <Line
+                    type="monotone"
+                    dataKey="weekend"
+                    name="Weekend"
+                    stroke="#EC4899"
+                    strokeWidth={2}
+                    dot={false}
+                  />
+                )}
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+
+        {!loading && (!chartData || chartData.length === 0) && (
+          <div className="text-gray-500 text-sm">
+            No data yet. Select a zone and click <span className="font-semibold">LOAD TREND DATA</span>.
+          </div>
+        )}
+
+        <p className="mt-2 text-xs text-gray-500">
+          Each value is the average number of trips (in + out) for that hour, aggregated across the date range
+          and split into workdays vs weekends.
+        </p>
       </div>
+
+      {/* optional: tables */}
+      {!loading && trafficData && trafficData.length > 0 && (
+        <div className="mt-4 bg-white p-4 rounded-lg shadow border border-purple-100 overflow-x-auto">
+          <table className="min-w-full text-sm">
+            <thead>
+              <tr className="bg-purple-50">
+                <th className="border border-gray-200 px-2 py-1 text-right">Hour</th>
+                <th className="border border-gray-200 px-2 py-1 text-right">Avg Workday Trips</th>
+                <th className="border border-gray-200 px-2 py-1 text-right">Avg Weekend Trips</th>
+              </tr>
+            </thead>
+            <tbody>
+              {trafficData.map((row, idx) => (
+                <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                  <td className="border border-gray-100 px-2 py-1 text-right">
+                    {row.hour_of_day}
+                  </td>
+                  <td className="border border-gray-100 px-2 py-1 text-right">
+                    {row.avg_workday_trips}
+                  </td>
+                  <td className="border border-gray-100 px-2 py-1 text-right">
+                    {row.avg_weekend_trips}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 };
@@ -232,7 +429,7 @@ const App = () => {
       </main>
 
       <footer className="mt-10 py-4 text-center text-xs text-gray-500 border-t">
-        TripNYC  | Made by Group 29
+        TripNYC  | Made with Love | Youni, Mengyang, Feiyang, Qingyang
       </footer>
     </div>
   );
