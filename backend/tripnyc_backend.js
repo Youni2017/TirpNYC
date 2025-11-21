@@ -28,7 +28,11 @@ const pool = new Pool({
     database: 'postgres',   
     password: 'younigroup29',
     port: 5432,
- 
+    ssl: {
+      require: true,                 
+      rejectUnauthorized: false,     
+    },
+    
 });
 
 
@@ -109,9 +113,146 @@ app.post('/api/estimate-trip', async (req, res) => {
   }
 });
 
-app.get('/api/traffic-dashboard', (req, res) => {
-  // TODO
+// app.get('/api/traffic-dashboard', (req, res) => {
+//   // TODO
+// });
+/*************************************************/
+//Youni's part
+// ---- Traffic Dashboard Query ----
+const queryTrafficFlow = async (locationId) => {
+  const trafficQuery = `
+    WITH all_trips AS (
+        SELECT pickup_datetime AS trip_time
+        FROM yellow_taxi_trip
+        WHERE pickup_location = $1
+          AND pickup_datetime >= '2025-08-01 00:00:00'
+          AND pickup_datetime <  '2025-08-31 00:00:00'
+
+        UNION ALL
+
+        SELECT pickup_datetime AS trip_time
+        FROM green_taxi_trip
+        WHERE pickup_location = $1
+          AND pickup_datetime >= '2025-08-01 00:00:00'
+          AND pickup_datetime <  '2025-08-31 00:00:00'
+
+        UNION ALL
+
+        SELECT pickup_datetime AS trip_time
+        FROM fhv_trip
+        WHERE pickup_location = $1
+          AND pickup_datetime >= '2025-08-01 00:00:00'
+          AND pickup_datetime <  '2025-08-31 00:00:00'
+
+        UNION ALL
+
+        SELECT dropoff_datetime AS trip_time
+        FROM yellow_taxi_trip
+        WHERE dropoff_location = $1
+          AND dropoff_datetime >= '2025-08-01 00:00:00'
+          AND dropoff_datetime <  '2025-08-31 00:00:00'
+
+        UNION ALL
+
+        SELECT dropoff_datetime AS trip_time
+        FROM green_taxi_trip
+        WHERE dropoff_location = $1
+          AND dropoff_datetime >= '2025-08-01 00:00:00'
+          AND dropoff_datetime <  '2025-08-31 00:00:00'
+
+        UNION ALL
+
+        SELECT dropoff_datetime AS trip_time
+        FROM fhv_trip
+        WHERE dropoff_location = $1
+          AND dropoff_datetime >= '2025-08-01 00:00:00'
+          AND dropoff_datetime <  '2025-08-31 00:00:00'
+    ),
+
+    days AS (
+        SELECT generate_series(
+            '2025-08-01'::date,
+            '2025-08-31'::date - INTERVAL '1 day',
+            INTERVAL '1 day'
+        )::date AS d
+    ),
+
+    hours AS (
+        SELECT generate_series(0, 23) AS hour_of_day
+    ),
+
+    calendar AS (
+        SELECT
+            d.d AS trip_date,
+            h.hour_of_day,
+            CASE
+                WHEN EXTRACT(ISODOW FROM d.d) IN (6, 7) THEN 'weekend'
+                ELSE 'workday'
+            END AS day_type
+        FROM days d
+        CROSS JOIN hours h
+    ),
+
+
+    per_day_hour AS (
+        SELECT
+            date_trunc('day', trip_time)::date AS trip_date,
+            EXTRACT(HOUR FROM trip_time)::int AS hour_of_day,
+            COUNT(*) AS trip_count
+        FROM all_trips
+        GROUP BY
+            date_trunc('day', trip_time)::date,
+            EXTRACT(HOUR FROM trip_time)::int
+    ),
+
+    calendar_with_counts AS (
+        SELECT
+            c.trip_date,
+            c.hour_of_day,
+            c.day_type,
+            COALESCE(p.trip_count, 0) AS trip_count
+        FROM calendar c
+        LEFT JOIN per_day_hour p
+          ON c.trip_date = p.trip_date
+         AND c.hour_of_day = p.hour_of_day
+    )
+
+    SELECT
+        hour_of_day,
+        ROUND(AVG(CASE WHEN day_type = 'workday' THEN trip_count END), 2) AS avg_workday_trips,
+        ROUND(AVG(CASE WHEN day_type = 'weekend' THEN trip_count END), 2) AS avg_weekend_trips
+    FROM
+        calendar_with_counts
+    GROUP BY
+        hour_of_day
+    ORDER BY
+        hour_of_day;
+  `;
+
+  const result = await pool.query(trafficQuery, [locationId]);
+  return result.rows;  
+};
+
+app.get('/api/traffic-dashboard', async (req, res) => {
+  const { locationId } = req.query;
+
+  const loc = parseInt(locationId, 10);
+  if (!loc || Number.isNaN(loc)) {
+    return res.status(400).json({ error: 'Missing or invalid locationId.' });
+  }
+
+  console.log(`[API CALL] Traffic Dashboard for location ${loc}`);
+
+  try {
+    const rows = await queryTrafficFlow(loc);
+    res.json(rows);
+  } catch (err) {
+    console.error('Failed to fetch traffic dashboard data:', err.message);
+    res.status(500).json({ error: 'Internal server error while fetching traffic dashboard data.' });
+  }
 });
+
+/*************************************************/
 
 
 // --- Server Startup ---
