@@ -48,24 +48,52 @@ app.get('/api/status', (req, res) => {
 });
 
 
-const queryTripData = async (startId, endId, timeInterval) => {
+// Query for Green/Yellow Taxi (combined)
+const queryTaxiData = async (startId, endId, startTime, endTime) => {
+  let queryParams = [startId, endId];
+  let paramIndex = 3;
+  let timeConditions = [];
 
-  const [startTimeStr, endTimeStr] = timeInterval.split('-');
-  
-  const queryParams = [startId, endId, startTimeStr, endTimeStr];
+  // Build time conditions based on provided times
+  // Compare only HH:MM portion, treating start as hh:mm:00 and end as hh:mm:59
+  if (startTime) {
+    // Start time: >= hh:mm:00 (any date)
+    timeConditions.push(`TO_CHAR(pickup_datetime, 'HH24:MI:SS') >= $${paramIndex}`);
+    queryParams.push(startTime + ':00');
+    paramIndex++;
+  }
+
+  if (endTime) {
+    // End time: <= hh:mm:59 (any date)
+    timeConditions.push(`TO_CHAR(pickup_datetime, 'HH24:MI:SS') <= $${paramIndex}`);
+    queryParams.push(endTime + ':59');
+    paramIndex++;
+  }
+
+  const timeWhereClause = timeConditions.length > 0 
+    ? `AND ${timeConditions.join(' AND ')}`
+    : '';
 
   const taxiQuery = `
-      SELECT
-          ROUND(AVG(total_amount), 2) AS avg_total_amount,
-          MIN(total_amount) AS min_total_amount,
-          MAX(total_amount) AS max_total_amount
-      FROM trip_analytics.yellow_taxi_trip
-      WHERE
-          pickup_location_id = $1
-          AND dropoff_location_id = $2
-          -- Conceptual time filtering based on HH:MM string comparison
-          AND TO_CHAR(pickup_datetime, 'HH24:MI') >= $3
-          AND TO_CHAR(pickup_datetime, 'HH24:MI') < $4;
+    SELECT
+      ROUND(AVG(total_amount), 2) AS avg_total_amount,
+      MIN(total_amount) AS min_total_amount,
+      MAX(total_amount) AS max_total_amount
+    FROM (
+      SELECT total_amount 
+      FROM yellow_taxi_trip
+      WHERE pickup_location = $1
+        AND dropoff_location = $2
+        ${timeWhereClause}
+      
+      UNION ALL
+      
+      SELECT total_amount
+      FROM green_taxi_trip
+      WHERE pickup_location = $1
+        AND dropoff_location = $2
+        ${timeWhereClause}
+    ) AS combined_taxis;
   `;
 
   try {
@@ -78,30 +106,105 @@ const queryTripData = async (startId, endId, timeInterval) => {
     return null;
 
   } catch (err) {
-    console.error("Database query error in queryTripData:", err);
-    throw new Error("Failed to retrieve data from the analytics database.");
+    console.error("Database query error in queryTaxiData:", err);
+    throw new Error("Failed to retrieve taxi data from the database.");
+  }
+};
+
+// Query for FHV (with waiting time)
+const queryFHVData = async (startId, endId, startTime, endTime, serviceProvider) => {
+  let queryParams = [startId, endId];
+  let paramIndex = 3;
+  let timeConditions = [];
+
+  // Build time conditions based on provided times
+  // Compare only HH:MM portion, treating start as hh:mm:00 and end as hh:mm:59
+  if (startTime) {
+    // Start time: >= hh:mm:00 (any date)
+    timeConditions.push(`TO_CHAR(pickup_datetime, 'HH24:MI:SS') >= $${paramIndex}`);
+    queryParams.push(startTime + ':00');
+    paramIndex++;
+  }
+
+  if (endTime) {
+    // End time: <= hh:mm:59 (any date)
+    timeConditions.push(`TO_CHAR(pickup_datetime, 'HH24:MI:SS') <= $${paramIndex}`);
+    queryParams.push(endTime + ':59');
+    paramIndex++;
+  }
+
+  // Add service provider condition if provided
+  if (serviceProvider) {
+    timeConditions.push(`service_provider = $${paramIndex}`);
+    queryParams.push(serviceProvider);
+    paramIndex++;
+  }
+
+  const timeWhereClause = timeConditions.length > 0 
+    ? `AND ${timeConditions.join(' AND ')}`
+    : '';
+
+  const fhvQuery = `
+    SELECT
+      ROUND(AVG(total_amount), 2) AS avg_total_amount,
+      MIN(total_amount) AS min_total_amount,
+      MAX(total_amount) AS max_total_amount,
+      ROUND(AVG(EXTRACT(EPOCH FROM (pickup_datetime - request_datetime)) / 60), 2) AS avg_waiting_time
+    FROM fhv_trip
+    WHERE
+      pickup_location = $1
+      AND dropoff_location = $2
+      ${timeWhereClause};
+  `;
+
+  try {
+    const fhvResult = await pool.query(fhvQuery, queryParams);
+
+    if (fhvResult.rows.length > 0 && fhvResult.rows[0].avg_total_amount !== null) {
+        return fhvResult.rows[0];
+    }
+    
+    return null;
+
+  } catch (err) {
+    console.error("Database query error in queryFHVData:", err);
+    throw new Error("Failed to retrieve FHV data from the database.");
   }
 };
 
 app.post('/api/estimate-trip', async (req, res) => {
-  const { startZoneId, endZoneId, timeInterval } = req.body; 
+  const { startLocation, endLocation, startTime, endTime, serviceProvider, tripType } = req.body; 
 
-  if (!startZoneId || !endZoneId || !timeInterval) {
-    return res.status(400).json({ error: 'Missing startZoneId, endZoneId, or timeInterval.' });
+  if (!startLocation || !endLocation) {
+    return res.status(400).json({ error: 'Missing startLocation or endLocation.' });
   }
 
-  console.log(`[API CALL] Trip Estimate: ${startZoneId} to ${endZoneId} during ${timeInterval}`);
+  if (!startTime && !endTime) {
+    return res.status(400).json({ error: 'At least one time (startTime or endTime) must be provided.' });
+  }
+
+  if (tripType === 'fhv' && !serviceProvider) {
+    return res.status(400).json({ error: 'Service provider is required for FHV trips.' });
+  }
+
+  console.log(`[API CALL] Trip Estimate: ${startLocation} to ${endLocation}, Type: ${tripType}, Start: ${startTime || 'N/A'}, End: ${endTime || 'N/A'}`);
 
   try {
-    const result = await queryTripData(startZoneId, endZoneId, timeInterval);
+    let result;
+    
+    if (tripType === 'taxi') {
+      result = await queryTaxiData(startLocation, endLocation, startTime, endTime);
+    } else if (tripType === 'fhv') {
+      result = await queryFHVData(startLocation, endLocation, startTime, endTime, serviceProvider);
+    } else {
+      return res.status(400).json({ error: 'Invalid tripType. Must be "taxi" or "fhv".' });
+    }
 
     if (!result) {
         return res.status(404).json({ error: "No historical data found for this route and time interval." });
     }
 
-    setTimeout(() => {
-      res.json(result);
-    }, 500); 
+    res.json(result);
 
   } catch (error) {
     console.error("Failed to process trip estimate:", error.message);

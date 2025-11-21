@@ -75,32 +75,220 @@ const fetchTrafficData = async ({ zoneId }) => {
 
 // --- UI Components ---
 
-const TripPlannerPage = () => {
+const TripPlannerPage = ({ estimate, loading, handleEstimateTrip }) => {
+  const [startLocation, setStartLocation] = useState('');
+  const [endLocation, setEndLocation] = useState('');
+  const [startTime, setStartTime] = useState('');
+  const [endTime, setEndTime] = useState('');
+  const [serviceProvider, setServiceProvider] = useState('');
+  const [tripType, setTripType] = useState('taxi'); // 'taxi' or 'fhv'
+  const [error, setError] = useState('');
+
+  const handleSubmit = async () => {
+    setError('');
+    
+    // Validation
+    if (!startLocation || !endLocation) {
+      setError('Please select both start and end locations.');
+      return;
+    }
+
+    if (tripType === 'fhv' && !serviceProvider) {
+      setError('Please enter a service provider for FHV.');
+      return;
+    }
+
+    if (!startTime && !endTime) {
+      setError('Please enter at least one time (start or end).');
+      return;
+    }
+
+    const params = {
+      startLocation: parseInt(startLocation),
+      endLocation: parseInt(endLocation),
+      startTime: startTime || null,
+      endTime: endTime || null,
+      serviceProvider: tripType === 'fhv' ? serviceProvider : null,
+      tripType: tripType
+    };
+
+    try {
+      await handleEstimateTrip(params);
+    } catch (err) {
+      setError(err.message || 'Failed to fetch trip estimate.');
+    }
+  };
+
   return (
     <div className="space-y-6 p-2">
       <h2 className="text-2xl font-bold text-gray-800">Trip Planner (Price & Time Estimator)</h2>
       <p className="text-sm text-gray-600">Enter zones and time to compare providers (Cost, Time, Wait).</p>
 
-      {/* Placeholder for Input Form */}
+      {/* Input Form */}
       <div className="bg-gray-100 p-6 rounded-xl shadow border border-gray-200">
-        <div className="flex flex-col space-y-3">
-          <div className="p-3 bg-white rounded-lg border border-gray-300 text-gray-500">
-            Input Placeholder: Pickup Zone / Dropoff Zone / Time
+        <div className="flex flex-col space-y-4">
+          {/* Start Location */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Start Location
+            </label>
+            <select
+              className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm"
+              value={startLocation}
+              onChange={(e) => setStartLocation(e.target.value)}
+            >
+              <option value="">Select start location</option>
+              {TLC_ZONES.map((z) => (
+                <option key={z.id} value={z.id}>
+                  {z.name} (ID: {z.id})
+                </option>
+              ))}
+            </select>
           </div>
-          <button className="w-full bg-indigo-400 text-white p-3 rounded-lg flex items-center justify-center font-semibold cursor-not-allowed opacity-75">
+
+          {/* End Location */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              End Location
+            </label>
+            <select
+              className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm"
+              value={endLocation}
+              onChange={(e) => setEndLocation(e.target.value)}
+            >
+              <option value="">Select end location</option>
+              {TLC_ZONES.map((z) => (
+                <option key={z.id} value={z.id}>
+                  {z.name} (ID: {z.id})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Time Inputs */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Start Time (HH:MM) <span className="text-gray-500 text-xs">(optional)</span>
+              </label>
+              <input
+                type="time"
+                className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                value={startTime}
+                onChange={(e) => setStartTime(e.target.value)}
+                step="60"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                End Time (HH:MM) <span className="text-gray-500 text-xs">(optional)</span>
+              </label>
+              <input
+                type="time"
+                className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                value={endTime}
+                onChange={(e) => setEndTime(e.target.value)}
+                step="60"
+              />
+            </div>
+          </div>
+
+          {/* Trip Type Selection */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Trip Type
+            </label>
+            <div className="flex space-x-4">
+              <label className="flex items-center">
+                <input
+                  type="radio"
+                  name="tripType"
+                  value="taxi"
+                  checked={tripType === 'taxi'}
+                  onChange={(e) => setTripType(e.target.value)}
+                  className="mr-2"
+                />
+                <span className="text-sm">Green/Yellow Taxi</span>
+              </label>
+              <label className="flex items-center">
+                <input
+                  type="radio"
+                  name="tripType"
+                  value="fhv"
+                  checked={tripType === 'fhv'}
+                  onChange={(e) => setTripType(e.target.value)}
+                  className="mr-2"
+                />
+                <span className="text-sm">FHV</span>
+              </label>
+            </div>
+          </div>
+
+          {/* Service Provider (only for FHV) */}
+          {tripType === 'fhv' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Service Provider
+              </label>
+              <input
+                type="text"
+                className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                placeholder="e.g., Uber, Lyft"
+                value={serviceProvider}
+                onChange={(e) => setServiceProvider(e.target.value)}
+              />
+            </div>
+          )}
+
+          {error && (
+            <div className="text-sm text-red-600 bg-red-50 p-2 rounded">
+              {error}
+            </div>
+          )}
+
+          <button
+            onClick={handleSubmit}
+            disabled={loading}
+            className={`w-full bg-indigo-500 text-white p-3 rounded-lg flex items-center justify-center font-semibold
+              ${loading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-indigo-600 cursor-pointer'}
+            `}
+          >
             <Car className="h-5 w-5 mr-2" />
-            GET PREDICTIVE ESTIMATES (Static Button)
+            {loading ? 'Loading...' : 'GET PREDICTIVE ESTIMATES'}
           </button>
         </div>
       </div>
 
-      {/* Placeholder for Results */}
-      <div className="mt-4">
-        <h3 className="text-xl font-semibold text-gray-700 mb-3">Comparison Results (Placeholder)</h3>
-        <div className="bg-green-50 p-4 rounded-lg shadow border border-green-200 h-24 flex items-center justify-center text-gray-500">
-            Results will appear here after data processing.
+      {/* Results */}
+      {estimate && (
+        <div className="mt-4">
+          <h3 className="text-xl font-semibold text-gray-700 mb-3">Comparison Results</h3>
+          <div className="bg-green-50 p-4 rounded-lg shadow border border-green-200">
+            <div className="space-y-2">
+              <div className="text-sm">
+                <span className="font-semibold">Average Cost: </span>
+                <span className="text-lg font-bold text-green-700">${estimate.avg_total_amount || 'N/A'}</span>
+              </div>
+              {estimate.min_total_amount !== undefined && (
+                <div className="text-sm text-gray-600">
+                  <span className="font-semibold">Min Cost: </span>${estimate.min_total_amount}
+                </div>
+              )}
+              {estimate.max_total_amount !== undefined && (
+                <div className="text-sm text-gray-600">
+                  <span className="font-semibold">Max Cost: </span>${estimate.max_total_amount}
+                </div>
+              )}
+              {tripType === 'fhv' && estimate.avg_waiting_time !== undefined && (
+                <div className="text-sm mt-2">
+                  <span className="font-semibold">Average Waiting Time: </span>
+                  <span className="text-lg font-bold text-blue-700">{estimate.avg_waiting_time} minutes</span>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };
