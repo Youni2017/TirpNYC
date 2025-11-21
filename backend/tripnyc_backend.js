@@ -8,6 +8,7 @@ Setup:
 const express = require('express');
 const cors = require('cors');
 const { Pool } = require('pg');
+const fs = require('fs');
 const app = express();
 const PORT = 3001;
 
@@ -20,15 +21,18 @@ const TLC_ZONES = [
   { id: 4, name: "Central Park" },
   { id: 10, name: "Midtown Center" },
   { id: 24, name: "JFK Airport" },
-];
+];  
 
 const pool = new Pool({
-    user: 'group29',       
-    host: 'tripnyc.cdbd5hpbpgyh.us-east-1.rds.amazonaws.com', 
-    database: 'postgres',   
-    password: 'younigroup29',
-    port: 5432,
- 
+  user: 'group29',
+  host: 'tripnyc.cdbd5hpbpgyh.us-east-1.rds.amazonaws.com',
+  database: 'postgres',
+  password: 'younigroup29',
+  port: 5432,
+  ssl : {
+    require: true,
+    rejectUnauthorized: false
+  }
 });
 
 
@@ -83,6 +87,83 @@ const queryTripData = async (startId, endId, timeInterval) => {
   }
 };
 
+const queryRouteHotspots = async () => {
+  const sql = `
+  WITH zone_cte AS (
+  SELECT id, zone_name FROM zone
+  ),
+  combined_trips AS (
+  SELECT
+    pickup_location,
+    dropoff_location,
+    total_amount
+  FROM yellow_taxi_trip
+  WHERE
+    EXTRACT(HOUR FROM pickup_datetime) >= 17
+    AND EXTRACT(HOUR FROM pickup_datetime) < 19
+
+
+  UNION ALL
+
+
+  SELECT
+    pickup_location,
+    dropoff_location,
+    total_amount
+  FROM green_taxi_trip
+  WHERE
+    EXTRACT(HOUR FROM pickup_datetime) >= 17
+    AND EXTRACT(HOUR FROM pickup_datetime) < 19
+
+
+  UNION ALL
+
+
+  SELECT
+    pickup_location,
+    dropoff_location,
+    total_amount
+  FROM fhv_trip
+  WHERE
+    EXTRACT(HOUR FROM pickup_datetime) >= 17
+    AND EXTRACT(HOUR FROM pickup_datetime) < 19
+  ),
+  aggregated_routes AS (
+    SELECT
+        pickup_location,
+        dropoff_location,
+        COUNT(*) AS total_trip_count,
+        ROUND(AVG(total_amount), 2) AS average_fare
+    FROM combined_trips
+    GROUP BY
+        pickup_location,
+        dropoff_location
+    HAVING pickup_location < dropoff_location
+    ORDER BY
+        total_trip_count DESC
+    LIMIT 10
+  )
+  SELECT
+  pu.zone_name AS departure_zone,
+  doo.zone_name AS arrival_zone,
+  ar.total_trip_count,
+  ar.average_fare
+  FROM aggregated_routes ar
+  INNER JOIN zone_cte pu ON ar.pickup_location = pu.id
+  INNER JOIN zone_cte doo ON ar.dropoff_location = doo.id
+  ORDER BY
+  ar.total_trip_count DESC;
+  `;
+
+  try {
+    const result = await pool.query(sql);
+    return result.rows; 
+  } catch (err) {
+    console.error("Database query error in queryRouteHotspots:", err);
+    throw new Error("Failed to retrieve route hotspot data from the analytics database.");
+  }
+};
+
 app.post('/api/estimate-trip', async (req, res) => {
   const { startZoneId, endZoneId, timeInterval } = req.body; 
 
@@ -111,6 +192,36 @@ app.post('/api/estimate-trip', async (req, res) => {
 
 app.get('/api/traffic-dashboard', (req, res) => {
   // TODO
+});
+app.get('/api/route-hotspots', async (req, res) => {
+  console.log('[API CALL] /api/route-hotspots (17-19h peak routes)');
+  try {
+    const hotspots = await queryRouteHotspots();
+    res.json(hotspots); 
+  } catch (error) {
+    console.error('Failed to fetch route hotspots:', error.message);
+    res.status(500).json({ error: error.message || 'Internal server error while fetching route hotspots.' });
+  }
+});
+app.post('/api/route-hotspots', async (req, res) => {
+  const { startTime, endTime } = req.body;
+
+  if (!startTime || !endTime) {
+    return res.status(400).json({ error: 'Missing startTime or endTime.' });
+  }
+
+  console.log(`[API CALL] /api/route-hotspots from ${startTime} to ${endTime}`);
+
+  try {
+    const hotspots = await queryRouteHotspots(startTime, endTime);
+    if (!hotspots || hotspots.length === 0) {
+      return res.status(404).json({ error: 'No data for this time range.' });
+    }
+    res.json(hotspots);
+  } catch (error) {
+    console.error('Failed to fetch route hotspots:', error.message);
+    res.status(500).json({ error: error.message || 'Internal server error while fetching route hotspots.' });
+  }
 });
 
 
