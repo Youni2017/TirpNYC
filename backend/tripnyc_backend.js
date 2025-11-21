@@ -9,7 +9,6 @@ const express = require('express');
 const cors = require('cors');
 const { Pool } = require('pg');
 const fs = require('fs');
-const QUERIES = require('./queries');
 const app = express();
 const PORT = 3001;
 
@@ -45,37 +44,6 @@ pool.on('error', (err) => {
 });
 
 
-const queryWavFulfillmentRate = async () => {
-  try {
-    const result = await pool.query(QUERIES.GET_WAV_FULFILLMENT_RATE);
-    return result.rows;
-  } catch (err) {
-    console.error("Database query error in queryWavFulfillmentRate:", err);
-    throw new Error("Failed to retrieve WAV fulfillment data.");
-  }
-};
-
-const queryWavRequestPercentage = async () => {
-  try {
-    const result = await pool.query(QUERIES.GET_WAV_REQUEST_PERCENTAGE);
-    return result.rows;
-  } catch (err) {
-    console.error("Database query error in queryWavRequestPercentage:", err);
-    throw new Error("Failed to retrieve WAV request percentage data.");
-  }
-};
-
-const queryWavWaitTime = async () => {
-  try {
-    const result = await pool.query(QUERIES.GET_WAV_WAIT_TIME);
-    return result.rows;
-  } catch (err) {
-    console.error("Database query error in queryWavWaitTime:", err);
-    throw new Error("Failed to retrieve WAV wait time data.");
-  }
-};
-
-
 // --- API Endpoints ---
 
 // Health Check
@@ -84,52 +52,24 @@ app.get('/api/status', (req, res) => {
 });
 
 
-// Query for Green/Yellow Taxi (combined)
-const queryTaxiData = async (startId, endId, startTime, endTime) => {
-  let queryParams = [startId, endId];
-  let paramIndex = 3;
-  let timeConditions = [];
+const queryTripData = async (startId, endId, timeInterval) => {
 
-  // Build time conditions based on provided times
-  // Compare only HH:MM portion, treating start as hh:mm:00 and end as hh:mm:59
-  if (startTime) {
-    // Start time: >= hh:mm:00 (any date)
-    timeConditions.push(`TO_CHAR(pickup_datetime, 'HH24:MI:SS') >= $${paramIndex}`);
-    queryParams.push(startTime + ':00');
-    paramIndex++;
-  }
-
-  if (endTime) {
-    // End time: <= hh:mm:59 (any date)
-    timeConditions.push(`TO_CHAR(pickup_datetime, 'HH24:MI:SS') <= $${paramIndex}`);
-    queryParams.push(endTime + ':59');
-    paramIndex++;
-  }
-
-  const timeWhereClause = timeConditions.length > 0 
-    ? `AND ${timeConditions.join(' AND ')}`
-    : '';
+  const [startTimeStr, endTimeStr] = timeInterval.split('-');
+  
+  const queryParams = [startId, endId, startTimeStr, endTimeStr];
 
   const taxiQuery = `
-    SELECT
-      ROUND(AVG(total_amount), 2) AS avg_total_amount,
-      MIN(total_amount) AS min_total_amount,
-      MAX(total_amount) AS max_total_amount
-    FROM (
-      SELECT total_amount 
-      FROM yellow_taxi_trip
-      WHERE pickup_location = $1
-        AND dropoff_location = $2
-        ${timeWhereClause}
-      
-      UNION ALL
-      
-      SELECT total_amount
-      FROM green_taxi_trip
-      WHERE pickup_location = $1
-        AND dropoff_location = $2
-        ${timeWhereClause}
-    ) AS combined_taxis;
+      SELECT
+          ROUND(AVG(total_amount), 2) AS avg_total_amount,
+          MIN(total_amount) AS min_total_amount,
+          MAX(total_amount) AS max_total_amount
+      FROM trip_analytics.yellow_taxi_trip
+      WHERE
+          pickup_location_id = $1
+          AND dropoff_location_id = $2
+          -- Conceptual time filtering based on HH:MM string comparison
+          AND TO_CHAR(pickup_datetime, 'HH24:MI') >= $3
+          AND TO_CHAR(pickup_datetime, 'HH24:MI') < $4;
   `;
 
   try {
@@ -142,69 +82,8 @@ const queryTaxiData = async (startId, endId, startTime, endTime) => {
     return null;
 
   } catch (err) {
-    console.error("Database query error in queryTaxiData:", err);
-    throw new Error("Failed to retrieve taxi data from the database.");
-  }
-};
-
-// Query for FHV (with waiting time)
-const queryFHVData = async (startId, endId, startTime, endTime, serviceProvider) => {
-  let queryParams = [startId, endId];
-  let paramIndex = 3;
-  let timeConditions = [];
-
-  // Build time conditions based on provided times
-  // Compare only HH:MM portion, treating start as hh:mm:00 and end as hh:mm:59
-  if (startTime) {
-    // Start time: >= hh:mm:00 (any date)
-    timeConditions.push(`TO_CHAR(pickup_datetime, 'HH24:MI:SS') >= $${paramIndex}`);
-    queryParams.push(startTime + ':00');
-    paramIndex++;
-  }
-
-  if (endTime) {
-    // End time: <= hh:mm:59 (any date)
-    timeConditions.push(`TO_CHAR(pickup_datetime, 'HH24:MI:SS') <= $${paramIndex}`);
-    queryParams.push(endTime + ':59');
-    paramIndex++;
-  }
-
-  // Add service provider condition if provided
-  if (serviceProvider) {
-    timeConditions.push(`service_provider = $${paramIndex}`);
-    queryParams.push(serviceProvider);
-    paramIndex++;
-  }
-
-  const timeWhereClause = timeConditions.length > 0 
-    ? `AND ${timeConditions.join(' AND ')}`
-    : '';
-
-  const fhvQuery = `
-    SELECT
-      ROUND(AVG(total_amount), 2) AS avg_total_amount,
-      MIN(total_amount) AS min_total_amount,
-      MAX(total_amount) AS max_total_amount,
-      ROUND(AVG(EXTRACT(EPOCH FROM (pickup_datetime - request_datetime)) / 60), 2) AS avg_waiting_time
-    FROM fhv_trip
-    WHERE
-      pickup_location = $1
-      AND dropoff_location = $2
-      ${timeWhereClause};
-  `;
-
-  try {
-    const fhvResult = await pool.query(fhvQuery, queryParams);
-
-    if (fhvResult.rows.length > 0 && fhvResult.rows[0].avg_total_amount !== null) {
-        return fhvResult.rows[0];
-    }
-    
-    return null;
-
-  } catch (err) {
-    console.error("Database query error in queryFHVData:", err);
-    throw new Error("Failed to retrieve FHV data from the database.");
+    console.error("Database query error in queryTripData:", err);
+    throw new Error("Failed to retrieve data from the analytics database.");
   }
 };
 
@@ -286,38 +165,24 @@ const queryRouteHotspots = async () => {
 };
 
 app.post('/api/estimate-trip', async (req, res) => {
-  const { startLocation, endLocation, startTime, endTime, serviceProvider, tripType } = req.body; 
+  const { startZoneId, endZoneId, timeInterval } = req.body; 
 
-  if (!startLocation || !endLocation) {
-    return res.status(400).json({ error: 'Missing startLocation or endLocation.' });
+  if (!startZoneId || !endZoneId || !timeInterval) {
+    return res.status(400).json({ error: 'Missing startZoneId, endZoneId, or timeInterval.' });
   }
 
-  if (!startTime && !endTime) {
-    return res.status(400).json({ error: 'At least one time (startTime or endTime) must be provided.' });
-  }
-
-  if (tripType === 'fhv' && !serviceProvider) {
-    return res.status(400).json({ error: 'Service provider is required for FHV trips.' });
-  }
-
-  console.log(`[API CALL] Trip Estimate: ${startLocation} to ${endLocation}, Type: ${tripType}, Start: ${startTime || 'N/A'}, End: ${endTime || 'N/A'}`);
+  console.log(`[API CALL] Trip Estimate: ${startZoneId} to ${endZoneId} during ${timeInterval}`);
 
   try {
-    let result;
-    
-    if (tripType === 'taxi') {
-      result = await queryTaxiData(startLocation, endLocation, startTime, endTime);
-    } else if (tripType === 'fhv') {
-      result = await queryFHVData(startLocation, endLocation, startTime, endTime, serviceProvider);
-    } else {
-      return res.status(400).json({ error: 'Invalid tripType. Must be "taxi" or "fhv".' });
-    }
+    const result = await queryTripData(startZoneId, endZoneId, timeInterval);
 
     if (!result) {
         return res.status(404).json({ error: "No historical data found for this route and time interval." });
     }
 
-    res.json(result);
+    setTimeout(() => {
+      res.json(result);
+    }, 500); 
 
   } catch (error) {
     console.error("Failed to process trip estimate:", error.message);
@@ -463,16 +328,7 @@ app.get('/api/traffic-dashboard', async (req, res) => {
     res.status(500).json({ error: 'Internal server error while fetching traffic dashboard data.' });
   }
 });
-app.get('/api/route-hotspots', async (req, res) => {
-  console.log('[API CALL] /api/route-hotspots (17-19h peak routes)');
-  try {
-    const hotspots = await queryRouteHotspots();
-    res.json(hotspots); 
-  } catch (error) {
-    console.error('Failed to fetch route hotspots:', error.message);
-    res.status(500).json({ error: error.message || 'Internal server error while fetching route hotspots.' });
-  }
-});
+
 app.post('/api/route-hotspots', async (req, res) => {
   const { startTime, endTime } = req.body;
 
@@ -491,53 +347,6 @@ app.post('/api/route-hotspots', async (req, res) => {
   } catch (error) {
     console.error('Failed to fetch route hotspots:', error.message);
     res.status(500).json({ error: error.message || 'Internal server error while fetching route hotspots.' });
-  }
-});
-
-
-app.get('/api/accessibility-report', async (req, res) => {
-  console.log('[API CALL] Accessibility Report requested. Running two queries...');
-
-  try {
-    const [fulfillmentData, requestPercentageData, waitTimeData] = await Promise.all([
-      queryWavFulfillmentRate(),
-      queryWavRequestPercentage(),
-      queryWavWaitTime()
-    ]);
-
-    const wavFulfillment = fulfillmentData.map(row => ({
-      provider: row.service_provider,
-      fulfillmentRate: parseFloat(row.fulfillment_percentage || 0),
-      totalRequests: parseInt(row.total_wav_requests || 0, 10),
-    }));
-
-    const requestPercentages = requestPercentageData.map(row => ({
-        provider: row.service_provider,
-        percentOfWavRequest: parseFloat(row.percent_of_wav_request || 0),
-        totalTrips: parseInt(row.total_trips || 0, 10),
-    }));
-
-    const waitTime = waitTimeData.map(row => ({
-        provider: row.service_provider,
-        avgWavWait: parseFloat(row.avg_wav_wait_sec || 0),
-        avgNonWavWait: parseFloat(row.avg_non_wav_wait_sec || 0),
-    }));
-
-
-    // Combine results into a comprehensive report
-    const report = {
-      wavFulfillment: wavFulfillment,
-      requestPercentages: requestPercentages,
-      waitTime: waitTime
-    };
-
-    setTimeout(() => {
-      res.json(report);
-    }, 1200);
-
-  } catch (error) {
-    console.error("Failed to process accessibility report:", error.message);
-    res.status(500).json({ error: error.message || "Internal server error during data fetching." });
   }
 });
 
