@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Plane, Compass, BarChart, MapPin, Bus, Car, Zap, Timer, Route } from 'lucide-react';
+import { Plane, Compass, BarChart, MapPin, Bus, Car } from 'lucide-react';
 import {
   LineChart,
   Line,
@@ -22,14 +22,6 @@ const TLC_ZONES = [
 
 const API_BASE_URL = 'http://localhost:3001/api'; //server url
 
-
-const LoadingSpinner = ({ color = 'text-white' }) => (
-  <svg className={`animate-spin h-5 w-5 ${color} mr-2`} viewBox="0 0 24 24">
-    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-  </svg>
-);
-
 // features
 const fetchTripEstimate = async (params) => {
   console.log('Fetching trip estimate for:', params);
@@ -51,27 +43,6 @@ const fetchTripEstimate = async (params) => {
     return data;
   } catch (error) {
     console.error('API Error in fetchTripEstimate:', error);
-    throw error;
-  }
-};
-
-const fetchRecommendedDestinations = async (params) => {
-  const { departureZoneId, startTime, endTime } = params;
-  const start = startTime || '00:00';
-  const end = endTime || '23:59';
-
-  const url = `${API_BASE_URL}/recommend-destinations?departureZoneId=${departureZoneId}&startTime=${start}&endTime=${end}`;
-  
-  try {
-    const response = await fetch(url);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`HTTP error! Status: ${response.status}. Message: ${errorText}`);
-    }
-    return await response.json();
-  } catch (error) {
-    console.error(`API Error in fetchRecommendedDestinations:`, error);
     throw error;
   }
 };
@@ -99,12 +70,6 @@ const fetchTrafficData = async ({ zoneId }) => {
   }
 };
 
-const fetchAccessibilityReport = async () => {
-  console.log('Fetching accessibility data:');
-  try {
-    const response = await fetch(
-      `${API_BASE_URL}/accessibility-report`
-    );
 // TODO the api call for the route hotspot and accessibility page
 const fetchRouteHotspots = async ({ startTime, endTime }) => {
   console.log('Fetching route hotspots...', startTime, endTime);
@@ -123,10 +88,6 @@ const fetchRouteHotspots = async ({ startTime, endTime }) => {
     }
 
     const data = await response.json();
-
-    return data;
-  } catch (error) {
-    console.error('API Error in fetchTrafficData:', error);
     return data; 
   } catch (error) {
     console.error('API Error in fetchRouteHotspots:', error);
@@ -137,11 +98,11 @@ const fetchRouteHotspots = async ({ startTime, endTime }) => {
 
 // --- UI Components ---
 
-const TripPlannerPage = ({ estimate, loading, handleEstimateTrip, recommendedDestinations, handleFetchRecommendedDestinations}) => {
+const TripPlannerPage = ({ estimate, loading, handleEstimateTrip }) => {
   const [startLocation, setStartLocation] = useState('');
   const [endLocation, setEndLocation] = useState('');
-  const [startTime, setStartTime] = useState('00:00');
-  const [endTime, setEndTime] = useState('23:59');
+  const [startTime, setStartTime] = useState('');
+  const [endTime, setEndTime] = useState('');
   const [serviceProvider, setServiceProvider] = useState('');
   const [tripType, setTripType] = useState('taxi'); // 'taxi' or 'fhv'
   const [error, setError] = useState('');
@@ -160,6 +121,10 @@ const TripPlannerPage = ({ estimate, loading, handleEstimateTrip, recommendedDes
       return;
     }
 
+    if (!startTime && !endTime) {
+      setError('Please enter at least one time (start or end).');
+      return;
+    }
 
     const params = {
       startLocation: parseInt(startLocation),
@@ -171,14 +136,7 @@ const TripPlannerPage = ({ estimate, loading, handleEstimateTrip, recommendedDes
     };
 
     try {
-      await Promise.all([
-          handleEstimateTrip(params), 
-          handleFetchRecommendedDestinations({ 
-              departureZoneId: parseInt(startLocation),
-              startTime,
-              endTime
-          })
-      ]);
+      await handleEstimateTrip(params);
     } catch (err) {
       setError(err.message || 'Failed to fetch trip estimate.');
     }
@@ -318,15 +276,12 @@ const TripPlannerPage = ({ estimate, loading, handleEstimateTrip, recommendedDes
               ${loading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-indigo-600 cursor-pointer'}
             `}
           >
-            {loading ? (
-                <><LoadingSpinner /> Loading...</> // <--- 确保 LoadingSpinner 被调用
-            ) : (
-                <><Car className="h-5 w-5 mr-2" /> GET PREDICTIVE ESTIMATES</>
-            )}
+            <Car className="h-5 w-5 mr-2" />
+            {loading ? 'Loading...' : 'GET PREDICTIVE ESTIMATES'}
           </button>
         </div>
       </div>
-      
+
       {/* Results */}
       {estimate && (
         <div className="mt-4">
@@ -357,37 +312,9 @@ const TripPlannerPage = ({ estimate, loading, handleEstimateTrip, recommendedDes
           </div>
         </div>
       )}
-  
-
-      {/* recommended dest*/}
-      {startLocation && (recommendedDestinations || loading) && (
-          <div className="mt-4">
-            <h3 className="text-xl font-semibold text-indigo-700 mb-3 flex items-center">
-                <Route className="w-5 h-5 mr-2"/> Top Destinations from {TLC_ZONES.find(z => z.id === parseInt(startLocation))?.name || `Zone ${startLocation}`}
-            </h3>
-            {!loading && recommendedDestinations && recommendedDestinations.length > 0 && (
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                    {recommendedDestinations.map((rec, index) => (
-                        <div key={index} 
-                             className="bg-white p-3 rounded-lg shadow border border-indigo-300 text-center cursor-pointer hover:bg-indigo-100 transition"
-                             onClick={() => setEndLocation(rec.zone_id.toString())}>
-                            <p className="text-lg font-bold text-indigo-600">{rec.arrival_zone}</p>
-                        </div>
-                    ))}
-                </div>
-            )}
-            {!loading && recommendedDestinations && recommendedDestinations.length === 0 && (
-                <div className="text-gray-500 text-sm p-4 text-center border rounded-lg bg-gray-50">
-                    No high-volume destinations found for this zone/time.
-                </div>
-            )}
-          </div>
-      )}
     </div>
   );
 };
-
-
 
 const TrafficDashboardPage = ({ trafficData, loading, handleFetchTraffic }) => {
   const [selectedZoneId, setSelectedZoneId] = useState(70);
@@ -588,119 +515,15 @@ const TrafficDashboardPage = ({ trafficData, loading, handleFetchTraffic }) => {
   );
 };
 
-
-const AccessibilityReportPage = ({ accessibilityData, loading, handleFetchAccessibility }) => {
-  useEffect(() => {
-    if (accessibilityData === null && !loading) {
-      handleFetchAccessibility();
-    }
-  }, [accessibilityData, loading, handleFetchAccessibility]);
-
-  if (loading && !accessibilityData) {
-    return (
-      <div className="space-y-6 p-4">
-        <h2 className="text-2xl font-bold text-gray-800">Accessibility Report</h2>
-        <div className="bg-gray-100 p-6 rounded-lg h-48 flex items-center justify-center text-gray-500 border border-gray-200">
-          <LoadingSpinner color="text-gray-500" /> Compiling Comprehensive Accessibility Report...
-        </div>
-      </div>
-    );
-  }
-
-  if (!accessibilityData) {
-    return (
-        <div className="space-y-6 p-4">
-            <h2 className="text-2xl font-bold text-gray-800">Accessibility Report</h2>
-            <div className="text-red-600 p-4 border border-red-300 bg-red-50 rounded-lg">
-                <p className='font-semibold'>Error: Could not load accessibility data.</p>
-                <p className='text-sm'>Please ensure the Node.js backend is running and the PostgreSQL connection details are correct.</p>
-            </div>
-        </div>
-    );
-  }
-  const { wavFulfillment, requestPercentages, waitTime } = accessibilityData;
-
-  const StatCard = ({ icon: Icon, title, value, unit, description, color }) => (
-    <div className={`bg-white p-4 rounded-xl shadow-md border-t-4 border-${color}-500`}>
-        <div className="flex items-center space-x-3">
-            <Icon className={`w-6 h-6 text-${color}-600`} />
-            <h4 className="text-lg font-semibold text-gray-800">{title}</h4>
-        </div>
-        <p className="text-3xl font-extrabold text-gray-900 mt-2">{value}{unit}</p>
-        <p className="text-xs text-gray-500 mt-1">{description}</p>
+const AccessibilityReportPage = () => (
+  <div className="space-y-6 p-4">
+    <h2 className="text-2xl font-bold text-gray-800">Accessibility Report</h2>
+    <p className="text-sm text-gray-600">Analyze Wheelchair Accessible Vehicle (WAV) fulfillment rates.</p>
+    <div className="bg-gray-100 p-6 rounded-lg h-48 flex items-center justify-center text-gray-500 border border-gray-200">
+      <span className="text-base">Placeholder: Visualizing WAV Fulfillment Data</span>
     </div>
-  );
-
-  return (
-    <div className="space-y-8 p-4">
-      <h2 className="text-2xl font-bold text-gray-800">Accessibility Report (WAV Metrics)</h2>
-      <p className="text-sm text-gray-600">Analysis of Wheelchair Accessible Vehicle (WAV) request fulfillment, volume, and wait times across ride-hail platforms.</p>
-      <section className="space-y-4">
-        <h3 className="text-xl font-semibold text-green-700 flex items-center"><Zap className="w-5 h-5 mr-2"/> WAV Fulfillment Performance</h3>
-        <p className="text-sm text-gray-600">The historical percentage of requested WAV trips that were successfully matched and fulfilled.</p>
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {wavFulfillment.map(item => (
-            <div key={item.provider} className="bg-green-50 p-4 rounded-lg shadow border border-green-200">
-              <span className="font-semibold text-green-800">{item.provider}</span>
-              <p className="text-2xl font-bold mt-1 mb-2 text-gray-900">{item.fulfillmentRate.toFixed(2)}%</p>
-              <div className="w-full bg-gray-200 rounded-full h-2.5">
-                <div className="bg-green-600 h-2.5 rounded-full transition-all duration-500" style={{ width: `${item.fulfillmentRate}%` }}></div>
-              </div>
-              <p className="text-xs text-gray-500 mt-2">Total WAV Requests: {item.totalRequests.toLocaleString()}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="space-y-4">
-        <h3 className="text-xl font-semibold text-indigo-700 flex items-center"><Timer className="w-5 h-5 mr-2"/> Wait Time Disparity (Seconds)</h3>
-        <p className="text-sm text-gray-600">Compares the average wait time for fulfilled WAV requests versus standard non-WAV requests.</p>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {waitTime.map(item => (
-                <div key={item.provider} className="bg-indigo-50 p-4 rounded-xl shadow border border-indigo-200">
-                    <span className="font-semibold text-indigo-800">{item.provider}</span>
-                    <div className="mt-2 space-y-2 text-sm">
-                        <div className="flex justify-between items-center bg-indigo-100 p-2 rounded-md">
-                            <span className="font-medium text-gray-700">WAV Wait (Avg)</span>
-                            <span className="text-lg font-bold text-indigo-700">{Math.round(item.avgWavWait)}s</span>
-                        </div>
-                        <div className="flex justify-between items-center bg-indigo-100 p-2 rounded-md">
-                            <span className="font-medium text-gray-700">Non-WAV Wait (Avg)</span>
-                            <span className="text-lg font-bold text-gray-700">{Math.round(item.avgNonWavWait)}s</span>
-                        </div>
-                        <p className="text-xs italic text-indigo-800 pt-1">
-                            WAV wait is **{Math.round(item.avgWavWait - item.avgNonWavWait)}s** longer.
-                        </p>
-                    </div>
-                </div>
-            ))}
-        </div>
-      </section>
-
-      <section className="space-y-4">
-        <h3 className="text-xl font-semibold text-red-700 flex items-center"><MapPin className="w-5 h-5 mr-2"/> WAV Request Volume</h3>
-        <p className="text-sm text-gray-600">The percentage of a provider's total trips that were initiated as WAV requests (for context).</p>
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {requestPercentages.map(item => (
-                <StatCard 
-                    key={item.provider}
-                    icon={Bus}
-                    title={item.provider}
-                    value={item.percentOfWavRequest.toFixed(2)}
-                    unit="%"
-                    description={`WAV requests out of ${item.totalTrips.toLocaleString()} total trips.`}
-                    color="red"
-                />
-            ))}
-        </div>
-      </section>
-      
-    </div>
-  );
-}
+  </div>
+);
 
 const RouteHotspotsPage = ({ hotspots, loading, onFetchRouteHotspots }) => {
   const [startTime, setStartTime] = useState('17:00');
@@ -828,8 +651,6 @@ const App = () => {
   const [loading, setLoading] = useState(false);
   const [tripEstimate, setTripEstimate] = useState(null);
   const [trafficData, setTrafficData] = useState(null);
-  const [accessibilityData, setAccessibilityData] = useState(null);
-  const [recommendedDestinations, setRecommendedDestinations] = useState(null); 
   const [routeHotspots, setRouteHotspots] = useState([]);
 
   const handleEstimateTrip = useCallback(async (params) => {
@@ -842,22 +663,6 @@ const App = () => {
       console.error('Error fetching trip estimate:', error);
     } finally {
       setLoading(false);
-    }
-  }, []);
-
-  const handleFetchRecommendedDestinations = useCallback(async (params) => {
-    if (!params) {
-        setRecommendedDestinations(null);
-        return;
-    }
-    try {
-        const data = await fetchRecommendedDestinations(params);
-        setRecommendedDestinations(data);
-        return data;
-    } catch (error) {
-        console.error('Error fetching recommended destinations:', error);
-        setRecommendedDestinations([]);
-        throw error;
     }
   }, []);
 
@@ -874,18 +679,6 @@ const App = () => {
     }
   }, []);
 
-  const handleFetchAccessibility = useCallback(async () => {
-    setLoading(true);
-    setAccessibilityData(null);
-    try {
-      const data = await fetchAccessibilityReport();
-      setAccessibilityData(data);
-    } catch (error) {
-      console.error('Error fetching accessibility report:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
   const handleFetchRouteHotspots = useCallback(async ({ startTime, endTime }) => {
   setLoading(true);
   setRouteHotspots([]);
@@ -902,15 +695,11 @@ const App = () => {
   const renderPage = () => {
     switch (currentPage) {
       case 'planner':
-        return <TripPlannerPage estimate={tripEstimate} 
-                    loading={loading} 
-                    handleEstimateTrip={handleEstimateTrip} 
-                    recommendedDestinations={recommendedDestinations} 
-                    handleFetchRecommendedDestinations={handleFetchRecommendedDestinations} />;
+        return <TripPlannerPage estimate={tripEstimate} loading={loading} handleEstimateTrip={handleEstimateTrip} />;
       case 'traffic':
         return <TrafficDashboardPage trafficData={trafficData} loading={loading} handleFetchTraffic={handleFetchTraffic} />;
       case 'accessibility':
-        return <AccessibilityReportPage accessibilityData={accessibilityData} loading={loading} handleFetchAccessibility={handleFetchAccessibility} />;
+        return <AccessibilityReportPage />;
       case 'hotspots':
         return <RouteHotspotsPage hotspots={routeHotspots} loading={loading} onFetchRouteHotspots={handleFetchRouteHotspots}/>;
       default:
@@ -926,7 +715,7 @@ const App = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 font-sans antialiased flex flex-col w-full">
+    <div className="min-h-screen bg-gray-50 font-sans antialiased">
       <script src="https://cdn.tailwindcss.com"></script>
       <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet" />
       <style>{`

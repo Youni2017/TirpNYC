@@ -44,48 +44,6 @@ pool.on('error', (err) => {
 });
 
 
-const queryWavFulfillmentRate = async () => {
-  try {
-    const result = await pool.query(QUERIES.GET_WAV_FULFILLMENT_RATE);
-    return result.rows;
-  } catch (err) {
-    console.error("Database query error in queryWavFulfillmentRate:", err);
-    throw new Error("Failed to retrieve WAV fulfillment data.");
-  }
-};
-
-const queryWavRequestPercentage = async () => {
-  try {
-    const result = await pool.query(QUERIES.GET_WAV_REQUEST_PERCENTAGE);
-    return result.rows;
-  } catch (err) {
-    console.error("Database query error in queryWavRequestPercentage:", err);
-    throw new Error("Failed to retrieve WAV request percentage data.");
-  }
-};
-
-const queryWavWaitTime = async () => {
-  try {
-    const result = await pool.query(QUERIES.GET_WAV_WAIT_TIME);
-    return result.rows;
-  } catch (err) {
-    console.error("Database query error in queryWavWaitTime:", err);
-    throw new Error("Failed to retrieve WAV wait time data.");
-  }
-};
-
-const queryRecommendedDestinations = async (departureZoneId, startTime, endTime) => {
-    const queryParams = [departureZoneId, startTime, endTime];
-    try {
-        const result = await pool.query(QUERIES.GET_RECOMMEND_DEST, queryParams);
-        return result.rows; // Returns array of { departure_zone, arrival_zone, trip_count }
-    } catch (err) {
-        console.error("Database query error in queryRecommendedDestinations:", err);
-        throw new Error("Failed to retrieve recommended destinations from the database.");
-    }
-};
-
-
 // --- API Endpoints ---
 
 // Health Check
@@ -128,37 +86,6 @@ const queryTripData = async (startId, endId, timeInterval) => {
     throw new Error("Failed to retrieve data from the analytics database.");
   }
 };
-
-app.get('/api/recommend-destinations', async (req, res) => {
-    const { departureZoneId, startTime, endTime } = req.query; 
-
-    if (!departureZoneId || !startTime || !endTime) {
-        return res.status(400).json({ error: 'Missing departureZoneId, startTime, or endTime parameters.' });
-    }
-
-    const depZoneId = parseInt(departureZoneId, 10);
-    if (isNaN(depZoneId)) {
-        return res.status(400).json({ error: 'Invalid departureZoneId.' });
-    }
-
-    console.log(`[API CALL] Recommended Destinations from ${depZoneId} during ${startTime} to ${endTime}`);
-
-    try {
-        const destinations = await queryRecommendedDestinations(depZoneId, startTime, endTime);
-
-        if (destinations.length === 0) {
-            return res.status(404).json({ message: "No frequent destinations found for this criteria." });
-        }
-
-        setTimeout(() => {
-            res.json(destinations);
-        }, 500);
-
-    } catch (error) {
-        console.error("Failed to process destination recommendation:", error.message);
-        res.status(500).json({ error: error.message || "Internal server error during data fetching." });
-    }
-});
 
 const queryRouteHotspots = async () => {
   const sql = `

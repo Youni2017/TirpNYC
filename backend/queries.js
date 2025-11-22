@@ -57,48 +57,8 @@ const QUERIES = {
         FROM fhv_trip
         WHERE request_datetime IS NOT NULL
             AND pickup_datetime IS NOT NULL
-        GROUP BY service_provider;
-    `,
-    
-    GET_RECOMMEND_DEST: `
-        WITH combined_trips AS (
-            SELECT pickup_location, dropoff_location 
-            FROM yellow_taxi_trip
-            WHERE pickup_location = $1
-                AND TO_CHAR(pickup_datetime, 'HH24:MI') >= $2
-                AND TO_CHAR(pickup_datetime, 'HH24:MI') < $3
-
-            UNION ALL
-
-            SELECT pickup_location, dropoff_location 
-            FROM green_taxi_trip
-            WHERE pickup_location = $1
-                AND TO_CHAR(pickup_datetime, 'HH24:MI') >= $2
-                AND TO_CHAR(pickup_datetime, 'HH24:MI') < $3
-
-            UNION ALL
-
-            SELECT pickup_location, dropoff_location 
-            FROM fhv_trip
-            WHERE pickup_location = $1
-                AND TO_CHAR(pickup_datetime, 'HH24:MI') >= $2
-                AND TO_CHAR(pickup_datetime, 'HH24:MI') < $3
-        ),
-        route_stats AS (
-            SELECT
-                pickup_location,
-                dropoff_location,
-                COUNT(*) AS trip_count
-            FROM combined_trips
-            GROUP BY pickup_location, dropoff_location
-        )
-        SELECT doo.zone_name AS arrival_zone, doo.id AS zone_id
-        FROM route_stats rs
-        JOIN zone pu ON rs.pickup_location = pu.id
-        JOIN zone doo ON rs.dropoff_location = doo.id
-        WHERE rs.pickup_location != rs.dropoff_location
-        ORDER BY rs.trip_count DESC
-        LIMIT 5;
+        GROUP BY service_provider
+        ORDER BY avg_wav_wait_sec DESC;
     `,
 
 };
