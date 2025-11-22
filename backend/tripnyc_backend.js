@@ -44,6 +44,22 @@ pool.on('error', (err) => {
   console.error('Unexpected error on idle client', err);
 });
 
+const queryAverageTravelTime = async (startId, endId, startTimeStr, endTimeStr) => {
+    const queryParams = [startId, endId, startTimeStr, endTimeStr];
+
+    try {
+        const result = await pool.query(QUERIES.GET_AVG_TRAVEL_TIME, queryParams);
+        
+        if (result.rows.length > 0 && result.rows[0].overall_avg_travel_time_seconds !== null) {
+            return result.rows[0];
+        }
+        return null;
+        
+    } catch (err) {
+        console.error("Database query error in queryAverageTravelTime:", err);
+        throw new Error("Failed to retrieve average travel time data.");
+    }
+};
 
 const queryWavFulfillmentRate = async () => {
   try {
@@ -345,21 +361,30 @@ app.post('/api/estimate-trip', async (req, res) => {
   console.log(`[API CALL] Trip Estimate: ${startLocation} to ${endLocation}, Type: ${tripType}, Start: ${startTime || 'N/A'}, End: ${endTime || 'N/A'}`);
 
   try {
-    let result;
+    let costResultPromise;
     
     if (tripType === 'taxi') {
-      result = await queryTaxiData(startLocation, endLocation, startTime, endTime);
+      costResultPromise = await queryTaxiData(startLocation, endLocation, startTime, endTime);
     } else if (tripType === 'fhv') {
-      result = await queryFHVData(startLocation, endLocation, startTime, endTime, serviceProvider);
+      costResultPromise = await queryFHVData(startLocation, endLocation, startTime, endTime, serviceProvider);
     } else {
       return res.status(400).json({ error: 'Invalid tripType. Must be "taxi" or "fhv".' });
     }
 
-    if (!result) {
+    const [costResult, timeResult] = await Promise.all([
+        costResultPromise,
+        queryAverageTravelTime(startLocation, endLocation, startTime, endTime)
+    ]);
+
+    
+    if (!costResult && !timeResult) {
         return res.status(404).json({ error: "No historical data found for this route and time interval." });
     }
-
-    res.json(result);
+    const combinedResult = {
+        ...(costResult || {}),
+        ...(timeResult || {})
+    };
+    res.json(combinedResult);
 
   } catch (error) {
     console.error("Failed to process trip estimate:", error.message);

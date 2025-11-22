@@ -171,7 +171,7 @@ const TripPlannerPage = ({ estimate, loading, handleEstimateTrip, recommendedDes
   };
 
   return (
-    <div className="space-y-6 p-2">
+    <div className="space-y-6 p-2 max-w-4xl mx-auto">
       <h2 className="text-2xl font-bold text-gray-800">Trip Planner (Price & Time Estimator)</h2>
       <p className="text-sm text-gray-600">Enter zones and time to compare providers (Cost, Time, Wait).</p>
 
@@ -249,7 +249,7 @@ const TripPlannerPage = ({ estimate, loading, handleEstimateTrip, recommendedDes
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Trip Type
             </label>
-            <div className="flex space-x-4">
+            <div className="flex flex-col space-x-4">
               <label className="flex items-center">
                 <input
                   type="radio"
@@ -331,6 +331,14 @@ const TripPlannerPage = ({ estimate, loading, handleEstimateTrip, recommendedDes
               {estimate.max_total_amount !== undefined && (
                 <div className="text-sm text-gray-600">
                   <span className="font-semibold">Max Cost: </span>${estimate.max_total_amount}
+                </div>
+              )}
+              {estimate.overall_avg_travel_time_seconds !== undefined && estimate.overall_avg_travel_time_seconds !== null && (
+                <div className="text-sm mt-2 pt-2 border-t border-gray-200">
+                  <span className="font-semibold">Average Travel Time: </span>
+                  <span className="text-lg font-bold text-blue-700">
+                    {Math.ceil(estimate.overall_avg_travel_time_seconds / 60)} minutes
+                  </span>
                 </div>
               )}
               {tripType === 'fhv' && estimate.avg_waiting_time !== undefined && (
@@ -584,7 +592,7 @@ const AccessibilityReportPage = ({ accessibilityData, loading, handleFetchAccess
 
   if (loading && !accessibilityData) {
     return (
-      <div className="space-y-6 p-4">
+      <div className="max-w-4xl mx-auto space-y-6 p-4">
         <h2 className="text-2xl font-bold text-gray-800">Accessibility Report</h2>
         <div className="bg-gray-100 p-6 rounded-lg h-48 flex items-center justify-center text-gray-500 border border-gray-200">
           <LoadingSpinner color="text-gray-500" /> Compiling Comprehensive Accessibility Report...
@@ -595,7 +603,7 @@ const AccessibilityReportPage = ({ accessibilityData, loading, handleFetchAccess
 
   if (!accessibilityData) {
     return (
-        <div className="space-y-6 p-4">
+        <div className="max-w-4xl mx-auto space-y-6 p-4">
             <h2 className="text-2xl font-bold text-gray-800">Accessibility Report</h2>
             <div className="text-red-600 p-4 border border-red-300 bg-red-50 rounded-lg">
                 <p className='font-semibold'>Error: Could not load accessibility data.</p>
@@ -618,7 +626,7 @@ const AccessibilityReportPage = ({ accessibilityData, loading, handleFetchAccess
   );
 
   return (
-    <div className="space-y-8 p-4">
+    <div className="space-y-8 p-4 max-w-4xl mx-auto">
       <h2 className="text-2xl font-bold text-gray-800">Accessibility Report (WAV Metrics)</h2>
       <p className="text-sm text-gray-600">Analysis of Wheelchair Accessible Vehicle (WAV) request fulfillment, volume, and wait times across ride-hail platforms.</p>
       <section className="space-y-4">
@@ -791,7 +799,7 @@ const App = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 font-sans antialiased flex flex-col w-full">
+    <div className="max-w-4xl mx-auto min-h-screen bg-gray-50 font-sans antialiased flex flex-col w-full">
       <script src="https://cdn.tailwindcss.com"></script>
       <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet" />
       <style>{`
@@ -815,7 +823,7 @@ const App = () => {
                   <button
                     key={item.id}
                     onClick={() => setCurrentPage(item.id)}
-                    className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition duration-150 ease-in-out whitespace-nowrap
+                    className={`flex flex-col items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition duration-150 ease-in-out whitespace-nowrap
                       ${isActive
                         ? 'bg-indigo-600 text-white shadow-md'
                         : 'text-indigo-200 hover:bg-indigo-700 hover:text-white'

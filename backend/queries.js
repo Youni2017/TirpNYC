@@ -1,4 +1,43 @@
 const QUERIES = {
+    GET_AVG_TRAVEL_TIME: `
+        SELECT
+            ROUND(AVG(travel_time_seconds), 0) AS overall_avg_travel_time_seconds
+        FROM
+        (
+            SELECT
+                EXTRACT(EPOCH FROM (dropoff_datetime - pickup_datetime)) AS travel_time_seconds
+            FROM yellow_taxi_trip
+            WHERE 
+                pickup_location = $1      
+                AND dropoff_location = $2
+                AND TO_CHAR(pickup_datetime, 'HH24:MI') >= $3
+                AND TO_CHAR(pickup_datetime, 'HH24:MI') < $4
+
+            UNION ALL
+
+            SELECT
+                EXTRACT(EPOCH FROM (dropoff_datetime - pickup_datetime)) AS travel_time_seconds
+            FROM green_taxi_trip
+            WHERE 
+                pickup_location = $1      
+                AND dropoff_location = $2
+                AND TO_CHAR(pickup_datetime, 'HH24:MI') >= $3
+                AND TO_CHAR(pickup_datetime, 'HH24:MI') < $4
+
+            UNION ALL
+
+            SELECT
+                EXTRACT(EPOCH FROM (dropoff_datetime - pickup_datetime)) AS travel_time_seconds
+            FROM fhv_trip
+            WHERE 
+                pickup_location = $1      
+                AND dropoff_location = $2
+                AND TO_CHAR(pickup_datetime, 'HH24:MI') >= $3
+                AND TO_CHAR(pickup_datetime, 'HH24:MI') < $4
+        ) AS all_trips;
+    `,
+    
+    
     // WAV Fulfillment Percentage
     GET_WAV_FULFILLMENT_RATE: `
         SELECT
