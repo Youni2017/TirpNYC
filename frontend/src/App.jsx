@@ -33,6 +33,7 @@ const LoadingSpinner = ({ color = 'text-white' }) => (
 // features
 const fetchTripEstimate = async (params) => {
   console.log('Fetching trip estimate for:', params);
+  console.log('Sending to:', `${API_BASE_URL}/estimate-trip`);
   try {
     const response = await fetch(`${API_BASE_URL}/estimate-trip`, {
       method: 'POST',
@@ -44,10 +45,12 @@ const fetchTripEstimate = async (params) => {
 
     if (!response.ok) {
       const errorText = await response.text();
+      console.error('Backend error response:', errorText);
       throw new Error(`HTTP error! Status: ${response.status}. Message: ${errorText}`);
     }
 
     const data = await response.json();
+    console.log('Trip estimate response:', data);
     return data;
   } catch (error) {
     console.error('API Error in fetchTripEstimate:', error);
@@ -157,14 +160,21 @@ const TripPlannerPage = ({ estimate, loading, handleEstimateTrip, recommendedDes
     };
 
     try {
-      await Promise.all([
-          handleEstimateTrip(params), 
-          handleFetchRecommendedDestinations({ 
-              departureZoneId: parseInt(startLocation),
-              startTime,
-              endTime
-          })
-      ]);
+      // Fetch trip estimate (main feature - must work independently)
+      await handleEstimateTrip(params);
+      
+      // Fetch recommended destinations (separate feature - don't break trip planner if it fails)
+      if (handleFetchRecommendedDestinations) {
+        handleFetchRecommendedDestinations({ 
+          departureZoneId: parseInt(startLocation),
+          startTime,
+          endTime
+        }).catch(err => {
+          // Silently fail - this is a separate feature
+          // The handleFetchRecommendedDestinations will set it to empty array on error
+          console.warn('Recommended destinations failed (this is OK):', err);
+        });
+      }
     } catch (err) {
       setError(err.message || 'Failed to fetch trip estimate.');
     }
@@ -313,52 +323,114 @@ const TripPlannerPage = ({ estimate, loading, handleEstimateTrip, recommendedDes
         </div>
       </div>
       
-      {/* Results */}
-      {estimate && (
+      {/* Loading State */}
+      {loading && (
         <div className="mt-4">
-          <h3 className="text-xl font-semibold text-gray-700 mb-3">Comparison Results</h3>
-          <div className="bg-green-50 p-4 rounded-lg shadow border border-green-200">
-            <div className="space-y-2">
-              <div className="text-sm">
-                <span className="font-semibold">Average Cost: </span>
-                <span className="text-lg font-bold text-green-700">${estimate.avg_total_amount || 'N/A'}</span>
-              </div>
-              {estimate.min_total_amount !== undefined && (
-                <div className="text-sm text-gray-600">
-                  <span className="font-semibold">Min Cost: </span>${estimate.min_total_amount}
-                </div>
-              )}
-              {estimate.max_total_amount !== undefined && (
-                <div className="text-sm text-gray-600">
-                  <span className="font-semibold">Max Cost: </span>${estimate.max_total_amount}
-                </div>
-              )}
-              {estimate.overall_avg_travel_time_seconds !== undefined && estimate.overall_avg_travel_time_seconds !== null && (
-                <div className="text-sm mt-2 pt-2 border-t border-gray-200">
-                  <span className="font-semibold">Average Travel Time: </span>
-                  <span className="text-lg font-bold text-blue-700">
-                    {Math.ceil(estimate.overall_avg_travel_time_seconds / 60)} minutes
-                  </span>
-                </div>
-              )}
-              {tripType === 'fhv' && estimate.avg_waiting_time !== undefined && (
-                <div className="text-sm mt-2">
-                  <span className="font-semibold">Average Waiting Time: </span>
-                  <span className="text-lg font-bold text-blue-700">{estimate.avg_waiting_time} minutes</span>
-                </div>
-              )}
+          <div className="bg-blue-50 p-4 rounded-lg shadow border border-blue-200 text-center">
+            <div className="flex items-center justify-center">
+              <LoadingSpinner color="text-blue-600" />
+              <span className="text-blue-700">Loading trip estimate...</span>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Results */}
+      {!loading && estimate && (
+        <div className="mt-4 space-y-4">
+          {/* Selected Provider Results */}
+          <div>
+            <h3 className="text-xl font-semibold text-gray-700 mb-3">Selected Provider Results</h3>
+            <div className="bg-green-50 p-4 rounded-lg shadow border border-green-200">
+              <div className="space-y-2">
+                {/* Average Cost - always shown */}
+                <div className="text-sm">
+                  <span className="font-semibold">Average Cost: </span>
+                  <span className="text-lg font-bold text-green-700">${estimate.avg_total_amount || 'N/A'}</span>
+                </div>
+                
+                {/* Min Cost */}
+                {estimate.min_total_amount !== undefined && estimate.min_total_amount !== null && (
+                  <div className="text-sm text-gray-600">
+                    <span className="font-semibold">Min Cost: </span>${estimate.min_total_amount}
+                  </div>
+                )}
+                
+                {/* Max Cost */}
+                {estimate.max_total_amount !== undefined && estimate.max_total_amount !== null && (
+                  <div className="text-sm text-gray-600">
+                    <span className="font-semibold">Max Cost: </span>${estimate.max_total_amount}
+                  </div>
+                )}
+                
+                {/* Waiting Time - only for FHV */}
+                {tripType === 'fhv' && estimate.avg_waiting_time !== undefined && estimate.avg_waiting_time !== null && (
+                  <div className="text-sm mt-2 pt-2 border-t border-gray-200">
+                    <span className="font-semibold">Average Waiting Time: </span>
+                    <span className="text-lg font-bold text-blue-700">{estimate.avg_waiting_time} minutes</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* All Providers Comparison */}
+          {estimate.overall_avg_price !== undefined && estimate.overall_avg_price !== null && (
+            <div>
+              <h3 className="text-xl font-semibold text-gray-700 mb-3">All Providers Comparison</h3>
+              <div className="bg-blue-50 p-4 rounded-lg shadow border border-blue-200">
+                <div className="space-y-2">
+                  <div className="text-sm">
+                    <span className="font-semibold">Overall Average Cost: </span>
+                    <span className="text-lg font-bold text-blue-700">${estimate.overall_avg_price}</span>
+                  </div>
+                  
+                  {estimate.overall_min_price !== undefined && estimate.overall_min_price !== null && (
+                    <div className="text-sm text-gray-600">
+                      <span className="font-semibold">Overall Min Cost: </span>${estimate.overall_min_price}
+                    </div>
+                  )}
+                  
+                  {estimate.overall_max_price !== undefined && estimate.overall_max_price !== null && (
+                    <div className="text-sm text-gray-600">
+                      <span className="font-semibold">Overall Max Cost: </span>${estimate.overall_max_price}
+                    </div>
+                  )}
+                  
+                  {estimate.recommended_vehicle_type && (
+                    <div className="text-sm mt-2 pt-2 border-t border-gray-200">
+                      <span className="font-semibold">Recommended Provider: </span>
+                      <span className="text-lg font-bold text-purple-700">{estimate.recommended_vehicle_type}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* No Results Message */}
+      {!loading && !estimate && !error && (
+        <div className="mt-4">
+          <div className="bg-gray-50 p-4 rounded-lg shadow border border-gray-200 text-center text-gray-500">
+            Click "GET PREDICTIVE ESTIMATES" to see trip cost information.
           </div>
         </div>
       )}
   
 
-      {/* recommended dest*/}
-      {startLocation && (recommendedDestinations || loading) && (
+      {/* recommended dest - always show if startLocation is set */}
+      {startLocation && (
           <div className="mt-4">
             <h3 className="text-xl font-semibold text-indigo-700 mb-3 flex items-center">
                 <Route className="w-5 h-5 mr-2"/> Top Destinations from {TLC_ZONES.find(z => z.id === parseInt(startLocation))?.name || `Zone ${startLocation}`}
             </h3>
+            {loading && (
+                <div className="text-gray-500 text-sm p-4 text-center border rounded-lg bg-gray-50">
+                    Loading destinations...
+                </div>
+            )}
             {!loading && recommendedDestinations && recommendedDestinations.length > 0 && (
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                     {recommendedDestinations.map((rec, index) => (
@@ -370,7 +442,7 @@ const TripPlannerPage = ({ estimate, loading, handleEstimateTrip, recommendedDes
                     ))}
                 </div>
             )}
-            {!loading && recommendedDestinations && recommendedDestinations.length === 0 && (
+            {!loading && (!recommendedDestinations || recommendedDestinations.length === 0) && (
                 <div className="text-gray-500 text-sm p-4 text-center border rounded-lg bg-gray-50">
                     No high-volume destinations found for this zone/time.
                 </div>
@@ -723,8 +795,11 @@ const App = () => {
     try {
       const data = await fetchTripEstimate(params);
       setTripEstimate(data);
+      return data;
     } catch (error) {
       console.error('Error fetching trip estimate:', error);
+      setTripEstimate(null);
+      throw error; // Re-throw so handleSubmit can catch it
     } finally {
       setLoading(false);
     }

@@ -235,6 +235,118 @@ const queryFHVData = async (startId, endId, startTime, endTime, serviceProvider)
   }
 };
 
+// Query for all providers comparison
+const queryAllProvidersComparison = async (startId, endId, startTime, endTime) => {
+  let queryParams = [startId, endId];
+  let paramIndex = 3;
+  let timeConditions = [];
+
+  // Build time conditions
+  if (startTime) {
+    timeConditions.push(`TO_CHAR(pickup_datetime, 'HH24:MI:SS') >= $${paramIndex}`);
+    queryParams.push(startTime + ':00');
+    paramIndex++;
+  }
+
+  if (endTime) {
+    timeConditions.push(`TO_CHAR(pickup_datetime, 'HH24:MI:SS') <= $${paramIndex}`);
+    queryParams.push(endTime + ':59');
+    paramIndex++;
+  }
+
+  const timeWhereClause = timeConditions.length > 0 
+    ? `AND ${timeConditions.join(' AND ')}`
+    : '';
+
+  // Build the query with proper parameter placeholders
+  const query = `
+    WITH yellow_prices AS (
+      SELECT
+        'Yellow Taxi' AS service_type,
+        total_amount
+      FROM yellow_taxi_trip
+      WHERE 
+        pickup_location = $1         
+        AND dropoff_location = $2
+        ${timeWhereClause}
+    ),
+    green_prices AS (
+      SELECT
+        'Green Taxi' AS service_type,
+        total_amount
+      FROM green_taxi_trip
+      WHERE 
+        pickup_location = $1         
+        AND dropoff_location = $2
+        ${timeWhereClause}
+    ),
+    uber_prices AS (
+      SELECT
+        'Uber' AS service_type,
+        total_amount
+      FROM fhv_trip
+      WHERE 
+        service_provider = 'Uber'
+        AND pickup_location = $1         
+        AND dropoff_location = $2
+        ${timeWhereClause}
+    ),
+    lyft_prices AS (
+      SELECT
+        'Lyft' AS service_type,
+        total_amount
+      FROM fhv_trip
+      WHERE 
+        service_provider = 'Lyft'
+        AND pickup_location = $1         
+        AND dropoff_location = $2
+        ${timeWhereClause}
+    ),
+    other_fhv_prices AS (
+      SELECT
+        'Other FHV' AS service_type,
+        total_amount
+      FROM fhv_trip
+      WHERE 
+        service_provider NOT IN ('Uber', 'Lyft')
+        AND pickup_location = $1         
+        AND dropoff_location = $2
+        ${timeWhereClause}
+    ),
+    all_prices AS (
+      SELECT * FROM yellow_prices
+      UNION ALL
+      SELECT * FROM green_prices
+      UNION ALL
+      SELECT * FROM uber_prices
+      UNION ALL
+      SELECT * FROM lyft_prices
+      UNION ALL
+      SELECT * FROM other_fhv_prices
+    )
+    SELECT
+      ROUND(MIN(ap.total_amount), 2) AS overall_min_price,
+      ROUND(MAX(ap.total_amount), 2) AS overall_max_price,
+      ROUND(AVG(ap.total_amount), 2) AS overall_avg_price,
+      (
+        SELECT service_type
+        FROM all_prices
+        GROUP BY service_type
+        ORDER BY AVG(total_amount) ASC
+        LIMIT 1
+      ) AS recommended_vehicle_type
+    FROM all_prices ap;
+  `;
+
+  try {
+    const result = await pool.query(query, queryParams);
+    return result.rows[0];
+  } catch (err) {
+    console.error("Database query error in queryAllProvidersComparison:", err);
+    throw new Error("Failed to retrieve comparison data.");
+  }
+};
+
 app.get('/api/recommend-destinations', async (req, res) => {
     const { departureZoneId, startTime, endTime } = req.query; 
 
@@ -344,47 +456,52 @@ const queryRouteHotspots = async () => {
 };
 
 app.post('/api/estimate-trip', async (req, res) => {
+  console.log('[ESTIMATE-TRIP] Received request body:', JSON.stringify(req.body));
   const { startLocation, endLocation, startTime, endTime, serviceProvider, tripType } = req.body; 
 
   if (!startLocation || !endLocation) {
+    console.log('[ESTIMATE-TRIP] Validation failed: Missing startLocation or endLocation');
     return res.status(400).json({ error: 'Missing startLocation or endLocation.' });
   }
 
-  if (!startTime && !endTime) {
-    return res.status(400).json({ error: 'At least one time (startTime or endTime) must be provided.' });
-  }
-
   if (tripType === 'fhv' && !serviceProvider) {
+    console.log('[ESTIMATE-TRIP] Validation failed: Missing service provider for FHV');
     return res.status(400).json({ error: 'Service provider is required for FHV trips.' });
   }
 
   console.log(`[API CALL] Trip Estimate: ${startLocation} to ${endLocation}, Type: ${tripType}, Start: ${startTime || 'N/A'}, End: ${endTime || 'N/A'}`);
 
   try {
-    let costResultPromise;
+    let result;
     
     if (tripType === 'taxi') {
-      costResultPromise = await queryTaxiData(startLocation, endLocation, startTime, endTime);
+      result = await queryTaxiData(startLocation, endLocation, startTime || null, endTime || null);
     } else if (tripType === 'fhv') {
-      costResultPromise = await queryFHVData(startLocation, endLocation, startTime, endTime, serviceProvider);
+      result = await queryFHVData(startLocation, endLocation, startTime || null, endTime || null, serviceProvider);
     } else {
       return res.status(400).json({ error: 'Invalid tripType. Must be "taxi" or "fhv".' });
     }
 
-    const [costResult, timeResult] = await Promise.all([
-        costResultPromise,
-        queryAverageTravelTime(startLocation, endLocation, startTime, endTime)
-    ]);
+    // Also get comparison across all providers
+    let comparisonResult = null;
+    try {
+      comparisonResult = await queryAllProvidersComparison(startLocation, endLocation, startTime || null, endTime || null);
+    } catch (compErr) {
+      console.warn('Failed to fetch all providers comparison:', compErr);
+      // Don't fail the main request if comparison fails
+    }
 
-    
-    if (!costResult && !timeResult) {
+    if (!result && !comparisonResult) {
         return res.status(404).json({ error: "No historical data found for this route and time interval." });
     }
-    const combinedResult = {
-        ...(costResult || {}),
-        ...(timeResult || {})
+
+    // Combine results
+    const response = {
+      ...(result || {}),
+      ...(comparisonResult || {})
     };
-    res.json(combinedResult);
+
+    res.json(response);
 
   } catch (error) {
     console.error("Failed to process trip estimate:", error.message);
