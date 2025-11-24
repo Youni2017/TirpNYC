@@ -181,7 +181,7 @@ const TripPlannerPage = ({ estimate, loading, handleEstimateTrip, recommendedDes
   };
 
   return (
-    <div className="space-y-6 p-2 max-w-4xl mx-auto">
+    <div className="space-y-6 p-4 w-full">
       <h2 className="text-2xl font-bold text-gray-800">Trip Planner (Price & Time Estimator)</h2>
       <p className="text-sm text-gray-600">Enter zones and time to compare providers (Cost, Time, Wait).</p>
 
@@ -664,7 +664,7 @@ const AccessibilityReportPage = ({ accessibilityData, loading, handleFetchAccess
 
   if (loading && !accessibilityData) {
     return (
-      <div className="max-w-4xl mx-auto space-y-6 p-4">
+      <div className="w-full space-y-6 p-4">
         <h2 className="text-2xl font-bold text-gray-800">Accessibility Report</h2>
         <div className="bg-gray-100 p-6 rounded-lg h-48 flex items-center justify-center text-gray-500 border border-gray-200">
           <LoadingSpinner color="text-gray-500" /> Compiling Comprehensive Accessibility Report...
@@ -675,7 +675,7 @@ const AccessibilityReportPage = ({ accessibilityData, loading, handleFetchAccess
 
   if (!accessibilityData) {
     return (
-        <div className="max-w-4xl mx-auto space-y-6 p-4">
+        <div className="w-full space-y-6 p-4">
             <h2 className="text-2xl font-bold text-gray-800">Accessibility Report</h2>
             <div className="text-red-600 p-4 border border-red-300 bg-red-50 rounded-lg">
                 <p className='font-semibold'>Error: Could not load accessibility data.</p>
@@ -874,7 +874,7 @@ const App = () => {
   ];
 
   return (
-    <div className="max-w-4xl mx-auto min-h-screen bg-gray-50 font-sans antialiased flex flex-col w-full">
+    <div className="min-h-screen w-full bg-gray-50 font-sans antialiased flex flex-col">
       <script src="https://cdn.tailwindcss.com"></script>
       <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet" />
       <style>{`
@@ -885,11 +885,11 @@ const App = () => {
 
       {/* Header and Navigation */}
       <header className="bg-indigo-700 text-white shadow-xl sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex justify-between items-center">
+        <div className="w-full px-4 sm:px-6 lg:px-8 py-3 flex justify-between items-center">
           <h1 className="text-2xl font-extrabold tracking-tight">TripNYC</h1>
         </div>
         <nav className="bg-indigo-800">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="w-full px-4 sm:px-6 lg:px-8">
             <div className="flex justify-start space-x-1 md:space-x-4 overflow-x-auto py-2">
               {navItems.map((item) => {
                 const Icon = item.icon;
@@ -914,8 +914,8 @@ const App = () => {
         </nav>
       </header>
 
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="bg-white rounded-xl shadow-2xl p-4 md:p-8">
+      <main className="w-full py-4">
+        <div className="w-full bg-white p-2 md:p-4">
           {renderPage()}
         </div>
       </main>
