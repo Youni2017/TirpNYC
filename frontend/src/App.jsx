@@ -569,44 +569,89 @@ const TrafficDashboardPage = ({ trafficData, loading, handleFetchTraffic }) => {
         )}
 
         {!loading && chartData && chartData.length > 0 && (
-          <div style={{ width: '100%', height: 320 }}>
+          <div style={{ width: '100%', height: 350 }}>
             <ResponsiveContainer>
-              <LineChart data={chartData} margin={{ top: 20, right: 24, left:48, bottom: 40 }}>
-                <CartesianGrid strokeDasharray="3 3" />
+              <LineChart
+                data={chartData}
+                margin={{ top: 30, right: 30, left: 20, bottom: 40 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+
+                {/* X */}
                 <XAxis
                   dataKey="hour"
-                  label={{ value: 'Hour of Day', position: 'insideBottom', offset: -4 }}
-                  tickMargin={6}
+                  tick={{ fill: '#6B7280', fontSize: 12 }}
+                  axisLine={{ stroke: '#D1D5DB' }}
+                  tickLine={{ stroke: '#D1D5DB' }}
+                  label={{
+                    value: 'Hour of Day',
+                    position: 'insideBottom',
+                    offset: -10,
+                    style: { fill: '#6B7280', fontSize: 13 }
+                  }}
                 />
+
+                {/* Y */}
                 <YAxis
-                  label={{ value: 'Avg Trips', angle: -90, position: 'insideLeft' }}
-                  tickMargin={6}
+                  tick={{ fill: '#6B7280', fontSize: 12 }}
+                  axisLine={{ stroke: '#D1D5DB' }}
+                  tickLine={{ stroke: '#D1D5DB' }}
+                  label={{
+                    value: 'Avg Trips',
+                    angle: 0,
+                    position: 'top',
+                    dy: -10,     // 再往上推一点
+                    style: { fill: '#6B7280', fontSize: 13 }
+                  }}
                 />
-                <Tooltip />
-                <Legend />
+
+                <Tooltip
+                  contentStyle={{
+                    borderRadius: 12,
+                    border: '1px solid #E5E7EB',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                    fontSize: 12
+                  }}
+                />
+
+                <Legend
+                  verticalAlign="top"
+                  align="right"
+                  iconType="circle"
+                  wrapperStyle={{
+                    paddingBottom: 10,
+                    fontSize: 13,
+                    color: '#6B7280'
+                  }}
+                />
+
                 {(viewMode === 'both' || viewMode === 'workday') && (
                   <Line
                     type="monotone"
                     dataKey="workday"
                     name="Workday"
-                    stroke="#6366F1"
-                    strokeWidth={2}
+                    stroke="#4F46E5"
+                    strokeWidth={3}
                     dot={false}
+                    activeDot={{ r: 5 }}
                   />
                 )}
+
                 {(viewMode === 'both' || viewMode === 'weekend') && (
                   <Line
                     type="monotone"
                     dataKey="weekend"
                     name="Weekend"
                     stroke="#EC4899"
-                    strokeWidth={2}
+                    strokeWidth={3}
                     dot={false}
+                    activeDot={{ r: 5 }}
                   />
                 )}
               </LineChart>
             </ResponsiveContainer>
           </div>
+
         )}
 
         {!loading && (!chartData || chartData.length === 0) && (
@@ -888,9 +933,9 @@ const App = () => {
         <div className="w-full px-4 sm:px-6 lg:px-8 py-3 flex justify-between items-center">
           <h1 className="text-2xl font-extrabold tracking-tight">TripNYC</h1>
         </div>
-        <nav className="bg-indigo-800">
+        <nav className="bg-indigo-800/80 backdrop-blur-md border-b border-indigo-700">
           <div className="w-full px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-start space-x-1 md:space-x-4 overflow-x-auto py-2">
+            <div className="flex justify-center gap-4 overflow-x-auto py-3">
               {navItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = currentPage === item.id;
@@ -898,13 +943,15 @@ const App = () => {
                   <button
                     key={item.id}
                     onClick={() => setCurrentPage(item.id)}
-                    className={`flex flex-col items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition duration-150 ease-in-out whitespace-nowrap
+                    className={` flex items-center px-5 py-2 rounded-xl text-sm font-medium
+                                  transition-all whitespace-nowrap shadow-md
+                                  border backdrop-blur-md
                       ${isActive
-                        ? 'bg-indigo-600 text-white shadow-md'
-                        : 'text-indigo-200 hover:bg-indigo-700 hover:text-white'
+                        ? 'bg-white/30 border-white/60 text-white shadow-lg'
+                        : 'bg-white/10 border-white/20 text-indigo-100 hover:bg-white/20 hover:text-white'
                       }`}
                   >
-                    <Icon className="w-5 h-5" />
+                    <Icon className="w-4 h-4 mr-2" />
                     <span>{item.name}</span>
                   </button>
                 );
