@@ -813,15 +813,123 @@ const AccessibilityReportPage = ({ accessibilityData, loading, handleFetchAccess
   );
 }
 
-const RouteHotspotsPage = () => (
-  <div className="space-y-6 p-4">
-    <h2 className="text-2xl font-bold text-gray-800">Route Hotspots</h2>
-    <p className="text-sm text-gray-600">See the top 10 busiest routes by hour.</p>
-    <div className="bg-gray-100 p-6 rounded-lg h-48 flex items-center justify-center text-gray-500 border border-gray-200">
-      <span className="text-base">Placeholder: Interactive Route Analytics</span>
+const RouteHotspotsPage = ({ hotspots, loading, onFetchRouteHotspots }) => {
+  const [startTime, setStartTime] = useState('17:00');
+  const [endTime, setEndTime] = useState('19:00');
+  const [error, setError] = useState('');
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    setError('');
+
+    if (!startTime || !endTime) {
+      setError('Please select both start and end time.');
+      return;
+    }
+
+    if (startTime >= endTime) {
+      setError('Start time must be earlier than end time.');
+      return;
+    }
+
+    onFetchRouteHotspots({ startTime, endTime });
+  };
+
+  return (
+    <div className="space-y-6 p-4">
+      <h2 className="text-2xl font-bold text-gray-800">Route Hotspots</h2>
+      <p className="text-sm text-gray-600">
+        Enter a time range to see the top 10 busiest routes.
+      </p>
+
+      <form
+        onSubmit={handleSubmit}
+        className="bg-gray-50 p-4 rounded-lg border border-gray-200 space-y-4"
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">
+              Start Time
+            </label>
+            <input
+              type="time"
+              value={startTime}
+              onChange={(e) => setStartTime(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">
+              End Time
+            </label>
+            <input
+              type="time"
+              value={endTime}
+              onChange={(e) => setEndTime(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+        </div>
+
+        {error && (
+          <p className="text-xs text-red-500 mt-1">{error}</p>
+        )}
+
+        <button
+          type="submit"
+          disabled={loading}
+          className={`mt-2 w-full md:w-auto inline-flex items-center justify-center px-4 py-2 rounded-lg text-sm font-semibold text-white
+            ${loading ? 'bg-indigo-300 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'}
+          `}
+        >
+          <MapPin className="w-4 h-4 mr-2" />
+          {loading ? 'Loading...' : 'Load Route Hotspots'}
+        </button>
+      </form>
+
+      <div className="bg-white p-4 rounded-lg shadow border border-gray-200">
+        {loading && hotspots.length === 0 && (
+          <div className="h-24 flex items-center justify-center text-gray-500">
+            Fetching data...
+          </div>
+        )}
+
+        {!loading && hotspots.length === 0 && !error && (
+          <div className="h-24 flex items-center justify-center text-gray-500">
+            No data yet. Please choose a time range and click &quot;Load Route Hotspots&quot;.
+          </div>
+        )}
+
+        {!loading && hotspots.length > 0 && (
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm text-left text-gray-700">
+              <thead>
+                <tr className="border-b bg-gray-100">
+                  <th className="px-4 py-2">Rank</th>
+                  <th className="px-4 py-2">Departure Zone</th>
+                  <th className="px-4 py-2">Arrival Zone</th>
+                </tr>
+              </thead>
+              <tbody>
+                {hotspots.map((row, idx) => (
+                  <tr
+                    key={`${row.departure_zone}-${row.arrival_zone}-${idx}`}
+                    className="border-b hover:bg-gray-50"
+                  >
+                    <td className="px-4 py-2 font-medium">{idx + 1}</td>
+                    <td className="px-4 py-2">{row.departure_zone}</td>
+                    <td className="px-4 py-2">{row.arrival_zone}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 
 // --- Main Application Component ---
@@ -833,6 +941,7 @@ const App = () => {
   const [trafficData, setTrafficData] = useState(null);
   const [accessibilityData, setAccessibilityData] = useState(null);
   const [recommendedDestinations, setRecommendedDestinations] = useState(null); 
+  const [routeHotspots, setRouteHotspots] = useState([]);
 
   const handleEstimateTrip = useCallback(async (params) => {
     setLoading(true);
@@ -878,6 +987,19 @@ const App = () => {
       setLoading(false);
     }
   }, []);
+  
+  const handleFetchRouteHotspots = useCallback(async ({ startTime, endTime }) => {
+  setLoading(true);
+  setRouteHotspots([]);
+  try {
+    const data = await fetchRouteHotspots({ startTime, endTime });
+    setRouteHotspots(data);
+  } catch (error) {
+    console.error('Error fetching route hotspots:', error);
+  } finally {
+    setLoading(false);
+  }
+  }, []);
 
   const handleFetchAccessibility = useCallback(async () => {
     setLoading(true);
@@ -892,6 +1014,30 @@ const App = () => {
     }
   }, []);
 
+const fetchRouteHotspots = async ({ startTime, endTime }) => {
+  console.log('Fetching route hotspots...', startTime, endTime);
+  try {
+    const response = await fetch(`${API_BASE_URL}/route-hotspots`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ startTime, endTime }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`HTTP error! Status: ${response.status}. Message: ${errorText}`);
+    }
+
+    const data = await response.json();
+    return data; 
+  } catch (error) {
+    console.error('API Error in fetchRouteHotspots:', error);
+    throw error;
+  }
+};
+
   const renderPage = () => {
     switch (currentPage) {
       case 'planner':
@@ -905,7 +1051,7 @@ const App = () => {
       case 'accessibility':
         return <AccessibilityReportPage accessibilityData={accessibilityData} loading={loading} handleFetchAccessibility={handleFetchAccessibility} />;
       case 'hotspots':
-        return <RouteHotspotsPage />;
+        return <RouteHotspotsPage hotspots={routeHotspots} loading={loading} onFetchRouteHotspots={handleFetchRouteHotspots}/>;
       default:
         return <TripPlannerPage estimate={tripEstimate} loading={loading} handleEstimateTrip={handleEstimateTrip} />;
     }
