@@ -1,42 +1,48 @@
 const QUERIES = {
     GET_AVG_TRAVEL_TIME: `
         SELECT
-            ROUND(AVG(travel_time_seconds), 0) AS overall_avg_travel_time_seconds
+            doo.zone_name AS arrival_zone,
+            rs.dropoff_location AS zone_id,
+            rs.trip_count
         FROM
         (
             SELECT
-                EXTRACT(EPOCH FROM (dropoff_datetime - pickup_datetime)) AS travel_time_seconds
-            FROM yellow_taxi_trip
-            WHERE 
-                pickup_location = $1      
-                AND dropoff_location = $2
-                AND TO_CHAR(pickup_datetime, 'HH24:MI') >= $3
-                AND TO_CHAR(pickup_datetime, 'HH24:MI') < $4
+                dropoff_location,
+                COUNT(*) AS trip_count
+            FROM
+            (
+                SELECT dropoff_location
+                FROM yellow_taxi_trip
+                WHERE
+                    pickup_location = $1
+                    AND (pickup_datetime::time) >= $2::time
+                    AND (pickup_datetime::time) < $3::time
 
-            UNION ALL
+                UNION ALL
 
-            SELECT
-                EXTRACT(EPOCH FROM (dropoff_datetime - pickup_datetime)) AS travel_time_seconds
-            FROM green_taxi_trip
-            WHERE 
-                pickup_location = $1      
-                AND dropoff_location = $2
-                AND TO_CHAR(pickup_datetime, 'HH24:MI') >= $3
-                AND TO_CHAR(pickup_datetime, 'HH24:MI') < $4
+                SELECT dropoff_location
+                FROM green_taxi_trip
+                WHERE
+                    pickup_location = $1
+                    AND (pickup_datetime::time) >= $2::time
+                    AND (pickup_datetime::time) < $3::time
 
-            UNION ALL
+                UNION ALL
 
-            SELECT
-                EXTRACT(EPOCH FROM (dropoff_datetime - pickup_datetime)) AS travel_time_seconds
-            FROM fhv_trip
-            WHERE 
-                pickup_location = $1      
-                AND dropoff_location = $2
-                AND TO_CHAR(pickup_datetime, 'HH24:MI') >= $3
-                AND TO_CHAR(pickup_datetime, 'HH24:MI') < $4
-        ) AS all_trips;
+                SELECT dropoff_location
+                FROM fhv_trip
+                WHERE
+                    pickup_location = $1
+                    AND (pickup_datetime::time) >= $2::time
+                    AND (pickup_datetime::time) < $3::time
+            ) AS combined_trips
+            GROUP BY dropoff_location
+        ) AS rs
+        JOIN zone doo ON rs.dropoff_location = doo.id
+        WHERE rs.dropoff_location != $1
+        ORDER BY rs.trip_count DESC
+        LIMIT 5;
     `,
-    
     
     // WAV Fulfillment Percentage
     GET_WAV_FULFILLMENT_RATE: `
