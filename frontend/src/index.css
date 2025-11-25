@@ -83,3 +83,32 @@ button:focus-visible {
   padding-bottom: 1rem;
   font-size: 0.95rem;
 }
+
+
+.tripnyc-marker {
+  border-radius: 9999px;
+}
+
+.tripnyc-marker-inner {
+  width: 18px;
+  height: 24px;
+  border-radius: 9999px;
+  border: 2px solid white;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.4);
+}
+
+.tripnyc-marker-default .tripnyc-marker-inner {
+  background: #3b82f6;
+}
+
+.tripnyc-marker-start .tripnyc-marker-inner {
+  background: #16a34a;
+}
+
+.tripnyc-marker-end .tripnyc-marker-inner {
+  background: #7c3aed;
+}
+
+.tripnyc-marker-both .tripnyc-marker-inner {
+  background: #f97316;
+}
