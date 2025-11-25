@@ -647,16 +647,7 @@ app.get('/api/traffic-dashboard', async (req, res) => {
     res.status(500).json({ error: 'Internal server error while fetching traffic dashboard data.' });
   }
 });
-app.get('/api/route-hotspots', async (req, res) => {
-  console.log('[API CALL] /api/route-hotspots (17-19h peak routes)');
-  try {
-    const hotspots = await queryRouteHotspots();
-    res.json(hotspots); 
-  } catch (error) {
-    console.error('Failed to fetch route hotspots:', error.message);
-    res.status(500).json({ error: error.message || 'Internal server error while fetching route hotspots.' });
-  }
-});
+
 app.post('/api/route-hotspots', async (req, res) => {
   const { startTime, endTime } = req.body;
 
