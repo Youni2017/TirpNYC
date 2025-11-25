@@ -13,11 +13,381 @@ import {
 
 const TLC_ZONES = [
   { id: 1, name: "Newark Airport" },
-  { id: 4, name: "Central Park" },
-  { id: 10, name: "Midtown Center" },
-  { id: 24, name: "JFK Airport" },
-  { id: 70, name: "Zone 70" }, 
-]; // to be get from databse later
+  { id: 2, name: "Jamaica Bay" },
+  { id: 3, name: "Allerton/Pelham Gardens" },
+  { id: 4, name: "Alphabet City" },
+  { id: 5, name: "Arden Heights" },
+  { id: 6, name: "Arrochar/Fort Wadsworth" },
+  { id: 7, name: "Astoria" },
+  { id: 8, name: "Astoria Park" },
+  { id: 9, name: "Auburndale" },
+  { id: 10, name: "Baisley Park" },
+  { id: 11, name: "Bath Beach" },
+  { id: 12, name: "Battery Park" },
+  { id: 13, name: "Battery Park City" },
+  { id: 14, name: "Bay Ridge" },
+  { id: 15, name: "Bay Terrace/Fort Totten" },
+  { id: 16, name: "Bayside" },
+  { id: 17, name: "Bedford" },
+  { id: 18, name: "Bedford Park" },
+  { id: 19, name: "Bellerose" },
+  { id: 20, name: "Belmont" },
+  { id: 21, name: "Bensonhurst East" },
+  { id: 22, name: "Bensonhurst West" },
+  { id: 23, name: "Bloomfield/Emerson Hill" },
+  { id: 24, name: "Bloomingdale" },
+  { id: 25, name: "Boerum Hill" },
+  { id: 26, name: "Borough Park" },
+  { id: 27, name: "Breezy Point/Fort Tilden/Riis Be" },
+  { id: 28, name: "Briarwood/Jamaica Hills" },
+  { id: 29, name: "Brighton Beach" },
+  { id: 30, name: "Broad Channel" },
+  { id: 31, name: "Bronx Park" },
+  { id: 32, name: "Bronxdale" },
+  { id: 33, name: "Brooklyn Heights" },
+  { id: 34, name: "Brooklyn Navy Yard" },
+  { id: 35, name: "Brownsville" },
+  { id: 36, name: "Bushwick North" },
+  { id: 37, name: "Bushwick South" },
+  { id: 38, name: "Cambria Heights" },
+  { id: 39, name: "Canarsie" },
+  { id: 40, name: "Carroll Gardens" },
+  { id: 41, name: "Central Harlem" },
+  { id: 42, name: "Central Harlem North" },
+  { id: 43, name: "Central Park" },
+  { id: 44, name: "Charleston/Tottenville" },
+  { id: 45, name: "Chinatown" },
+  { id: 46, name: "City Island" },
+  { id: 47, name: "Claremont/Bathgate" },
+  { id: 48, name: "Clinton East" },
+  { id: 49, name: "Clinton Hill" },
+  { id: 50, name: "Clinton West" },
+  { id: 51, name: "Co-Op City" },
+  { id: 52, name: "Cobble Hill" },
+  { id: 53, name: "College Point" },
+  { id: 54, name: "Columbia Street" },
+  { id: 55, name: "Coney Island" },
+  { id: 56, name: "Corona" },
+  { id: 57, name: "Corona" },
+  { id: 58, name: "Country Club" },
+  { id: 59, name: "Crotona Park" },
+  { id: 60, name: "Crotona Park East" },
+  { id: 61, name: "Crown Heights North" },
+  { id: 62, name: "Crown Heights South" },
+  { id: 63, name: "Cypress Hills" },
+  { id: 64, name: "Douglaston" },
+  { id: 65, name: "Downtown Brooklyn/MetroTech" },
+  { id: 66, name: "DUMBO/Vinegar Hill" },
+  { id: 67, name: "Dyker Heights" },
+  { id: 68, name: "East Chelsea" },
+  { id: 69, name: "East Concourse/Concourse Village" },
+  { id: 70, name: "East Elmhurst" },
+  { id: 71, name: "East Flatbush/Farragut" },
+  { id: 72, name: "East Flatbush/Remsen Village" },
+  { id: 73, name: "East Flushing" },
+  { id: 74, name: "East Harlem North" },
+  { id: 75, name: "East Harlem South" },
+  { id: 76, name: "East New York" },
+  { id: 77, name: "East New York/Pennsylvania Avenu" },
+  { id: 78, name: "East Tremont" },
+  { id: 79, name: "East Village" },
+  { id: 80, name: "East Williamsburg" },
+  { id: 81, name: "Eastchester" },
+  { id: 82, name: "Elmhurst" },
+  { id: 83, name: "Elmhurst/Maspeth" },
+  { id: 84, name: "Eltingville/Annadale/Prince's Ba" },
+  { id: 85, name: "Erasmus" },
+  { id: 86, name: "Far Rockaway" },
+  { id: 87, name: "Financial District North" },
+  { id: 88, name: "Financial District South" },
+  { id: 89, name: "Flatbush/Ditmas Park" },
+  { id: 90, name: "Flatiron" },
+  { id: 91, name: "Flatlands" },
+  { id: 92, name: "Flushing" },
+  { id: 93, name: "Flushing Meadows-Corona Park" },
+  { id: 94, name: "Fordham South" },
+  { id: 95, name: "Forest Hills" },
+  { id: 96, name: "Forest Park/Highland Park" },
+  { id: 97, name: "Fort Greene" },
+  { id: 98, name: "Fresh Meadows" },
+  { id: 99, name: "Freshkills Park" },
+  { id: 100, name: "Garment District" },
+  { id: 101, name: "Glen Oaks" },
+  { id: 102, name: "Glendale" },
+  { id: 103, name: "Governor's Island/Ellis Island/L" },
+  { id: 104, name: "Governor's Island/Ellis Island/L" },
+  { id: 105, name: "Governor's Island/Ellis Island/L" },
+  { id: 106, name: "Gowanus" },
+  { id: 107, name: "Gramercy" },
+  { id: 108, name: "Gravesend" },
+  { id: 109, name: "Great Kills" },
+  { id: 110, name: "Great Kills Park" },
+  { id: 111, name: "Green-Wood Cemetery" },
+  { id: 112, name: "Greenpoint" },
+  { id: 113, name: "Greenwich Village North" },
+  { id: 114, name: "Greenwich Village South" },
+  { id: 115, name: "Grymes Hill/Clifton" },
+  { id: 116, name: "Hamilton Heights" },
+  { id: 117, name: "Hammels/Arverne" },
+  { id: 118, name: "Heartland Village/Todt Hill" },
+  { id: 119, name: "Highbridge" },
+  { id: 120, name: "Highbridge Park" },
+  { id: 121, name: "Hillcrest/Pomonok" },
+  { id: 122, name: "Hollis" },
+  { id: 123, name: "Homecrest" },
+  { id: 124, name: "Howard Beach" },
+  { id: 125, name: "Hudson Sq" },
+  { id: 126, name: "Hunts Point" },
+  { id: 127, name: "Inwood" },
+  { id: 128, name: "Inwood Hill Park" },
+  { id: 129, name: "Jackson Heights" },
+  { id: 130, name: "Jamaica" },
+  { id: 131, name: "Jamaica Estates" },
+  { id: 132, name: "JFK Airport" },
+  { id: 133, name: "Kensington" },
+  { id: 134, name: "Kew Gardens" },
+  { id: 135, name: "Kew Gardens Hills" },
+  { id: 136, name: "Kingsbridge Heights" },
+  { id: 137, name: "Kips Bay" },
+  { id: 138, name: "LaGuardia Airport" },
+  { id: 139, name: "Laurelton" },
+  { id: 140, name: "Lenox Hill East" },
+  { id: 141, name: "Lenox Hill West" },
+  { id: 142, name: "Lincoln Square East" },
+  { id: 143, name: "Lincoln Square West" },
+  { id: 144, name: "Little Italy/NoLiTa" },
+  { id: 145, name: "Long Island City/Hunters Point" },
+  { id: 146, name: "Long Island City/Queens Plaza" },
+  { id: 147, name: "Longwood" },
+  { id: 148, name: "Lower East Side" },
+  { id: 149, name: "Madison" },
+  { id: 150, name: "Manhattan Beach" },
+  { id: 151, name: "Manhattan Valley" },
+  { id: 152, name: "Manhattanville" },
+  { id: 153, name: "Marble Hill" },
+  { id: 154, name: "Marine Park/Floyd Bennett Field" },
+  { id: 155, name: "Marine Park/Mill Basin" },
+  { id: 156, name: "Mariners Harbor" },
+  { id: 157, name: "Maspeth" },
+  { id: 158, name: "Meatpacking/West Village West" },
+  { id: 159, name: "Melrose South" },
+  { id: 160, name: "Middle Village" },
+  { id: 161, name: "Midtown Center" },
+  { id: 162, name: "Midtown East" },
+  { id: 163, name: "Midtown North" },
+  { id: 164, name: "Midtown South" },
+  { id: 165, name: "Midwood" },
+  { id: 166, name: "Morningside Heights" },
+  { id: 167, name: "Morrisania/Melrose" },
+  { id: 168, name: "Mott Haven/Port Morris" },
+  { id: 169, name: "Mount Hope" },
+  { id: 170, name: "Murray Hill" },
+  { id: 171, name: "Murray Hill-Queens" },
+  { id: 172, name: "New Dorp/Midland Beach" },
+  { id: 173, name: "North Corona" },
+  { id: 174, name: "Norwood" },
+  { id: 175, name: "Oakland Gardens" },
+  { id: 176, name: "Oakwood" },
+  { id: 177, name: "Ocean Hill" },
+  { id: 178, name: "Ocean Parkway South" },
+  { id: 179, name: "Old Astoria" },
+  { id: 180, name: "Ozone Park" },
+  { id: 181, name: "Park Slope" },
+  { id: 182, name: "Parkchester" },
+  { id: 183, name: "Pelham Bay" },
+  { id: 184, name: "Pelham Bay Park" },
+  { id: 185, name: "Pelham Parkway" },
+  { id: 186, name: "Penn Station/Madison Sq West" },
+  { id: 187, name: "Port Richmond" },
+  { id: 188, name: "Prospect-Lefferts Gardens" },
+  { id: 189, name: "Prospect Heights" },
+  { id: 190, name: "Prospect Park" },
+  { id: 191, name: "Queens Village" },
+  { id: 192, name: "Queensboro Hill" },
+  { id: 193, name: "Queensbridge/Ravenswood" },
+  { id: 194, name: "Randalls Island" },
+  { id: 195, name: "Red Hook" },
+  { id: 196, name: "Rego Park" },
+  { id: 197, name: "Richmond Hill" },
+  { id: 198, name: "Ridgewood" },
+  { id: 199, name: "Rikers Island" },
+  { id: 200, name: "Riverdale/North Riverdale/Fields" },
+  { id: 201, name: "Rockaway Park" },
+  { id: 202, name: "Roosevelt Island" },
+  { id: 203, name: "Rosedale" },
+  { id: 204, name: "Rossville/Woodrow" },
+  { id: 205, name: "Saint Albans" },
+  { id: 206, name: "Saint George/New Brighton" },
+  { id: 207, name: "Saint Michaels Cemetery/Woodside" },
+  { id: 208, name: "Schuylerville/Edgewater Park" },
+  { id: 209, name: "Seaport" },
+  { id: 210, name: "Sheepshead Bay" },
+  { id: 211, name: "SoHo" },
+  { id: 212, name: "Soundview/Bruckner" },
+  { id: 213, name: "Soundview/Castle Hill" },
+  { id: 214, name: "South Beach/Dongan Hills" },
+  { id: 215, name: "South Jamaica" },
+  { id: 216, name: "South Ozone Park" },
+  { id: 217, name: "South Williamsburg" },
+  { id: 218, name: "Springfield Gardens North" },
+  { id: 219, name: "Springfield Gardens South" },
+  { id: 220, name: "Spuyten Duyvil/Kingsbridge" },
+  { id: 221, name: "Stapleton" },
+  { id: 222, name: "Starrett City" },
+  { id: 223, name: "Steinway" },
+  { id: 224, name: "Stuy Town/Peter Cooper Village" },
+  { id: 225, name: "Stuyvesant Heights" },
+  { id: 226, name: "Sunnyside" },
+  { id: 227, name: "Sunset Park East" },
+  { id: 228, name: "Sunset Park West" },
+  { id: 229, name: "Sutton Place/Turtle Bay North" },
+  { id: 230, name: "Times Sq/Theatre District" },
+  { id: 231, name: "TriBeCa/Civic Center" },
+  { id: 232, name: "Two Bridges/Seward Park" },
+  { id: 233, name: "UN/Turtle Bay South" },
+  { id: 234, name: "Union Sq" },
+  { id: 235, name: "University Heights/Morris Height" },
+  { id: 236, name: "Upper East Side North" },
+  { id: 237, name: "Upper East Side South" },
+  { id: 238, name: "Upper West Side North" },
+  { id: 239, name: "Upper West Side South" },
+  { id: 240, name: "Van Cortlandt Park" },
+  { id: 241, name: "Van Cortlandt Village" },
+  { id: 242, name: "Van Nest/Morris Park" },
+  { id: 243, name: "Washington Heights North" },
+  { id: 244, name: "Washington Heights South" },
+  { id: 245, name: "West Brighton" },
+  { id: 246, name: "West Chelsea/Hudson Yards" },
+  { id: 247, name: "West Concourse" },
+  { id: 248, name: "West Farms/Bronx River" },
+  { id: 249, name: "West Village" },
+  { id: 250, name: "Westchester Village/Unionport" },
+  { id: 251, name: "Westerleigh" },
+  { id: 252, name: "Whitestone" },
+  { id: 253, name: "Willets Point" },
+  { id: 254, name: "Williamsbridge/Olinville" },
+  { id: 255, name: "Williamsburg (North Side)" },
+  { id: 256, name: "Williamsburg (South Side)" },
+  { id: 257, name: "Windsor Terrace" },
+  { id: 258, name: "Woodhaven" },
+  { id: 259, name: "Woodlawn/Wakefield" },
+  { id: 260, name: "Woodside" },
+  { id: 261, name: "World Trade Center" },
+  { id: 262, name: "Yorkville East" },
+  { id: 263, name: "Yorkville West" },
+];
+
+
+const ZoneAutocomplete = ({
+  label,
+  value,
+  onChange,          
+  placeholder = 'Type zone name or ID',
+}) => {
+  const [inputValue, setInputValue] = useState('');
+  const [isOpen, setIsOpen] = useState(false);
+
+  const clearSelection = () => {
+    setInputValue('');
+    onChange('');   
+    setIsOpen(false);
+  };
+
+
+  useEffect(() => {
+    if (value === null || value === undefined || value === '') {
+      setInputValue('');
+      return;
+    }
+    const selected = TLC_ZONES.find(z => String(z.id) === String(value));
+    if (selected) {
+      setInputValue(`${selected.name} (ID: ${selected.id})`);
+    }
+  }, [value]);
+
+  const handleInputChange = (e) => {
+    const v = e.target.value;
+    setInputValue(v);
+    if (v.trim() === '') {
+      setIsOpen(false);
+    } else {
+      setIsOpen(true);
+    }
+
+  };
+
+  const handleSelectZone = (zone) => {
+    setInputValue(`${zone.name} (ID: ${zone.id})`);
+    setIsOpen(false);
+    onChange(String(zone.id));
+  };
+
+  // 前缀匹配：n -> Newark Airport；c -> Central Park
+  const filteredZones = TLC_ZONES.filter((z) => {
+    const q = inputValue.trim().toLowerCase();
+    if (!q) return true;
+
+    const name = z.name.toLowerCase();
+    const nameStartsWith = name.startsWith(q);
+    const idStartsWith = String(z.id).startsWith(q);
+
+    return nameStartsWith || idStartsWith;
+  });
+
+  return (
+    <div className="relative">
+      {label && (
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          {label}
+        </label>
+      )}
+
+      <div className="relative">
+        <input
+          type="text"
+          className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          placeholder={placeholder}
+          value={inputValue}
+          onChange={handleInputChange}
+          onFocus={() => setIsOpen(true)}
+        />
+
+        {/* 清除按钮在这里，能直接访问 inputValue 和 clearSelection */}
+        <button
+          type="button"
+          onClick={clearSelection}
+          className="absolute right-2 top-1/4 -translate-y-1/4 text-gray-400 hover:text-gray-600 transition-colors"
+        >
+          ✕
+        </button>
+      </div>
+
+      {isOpen && filteredZones.length > 0 && (
+        <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-auto text-sm">
+          {filteredZones.map((z) => (
+            <button
+              key={z.id}
+              type="button"
+              onClick={() => handleSelectZone(z)}
+              className="w-full text-left px-3 py-2 hover:bg-indigo-50 flex justify-between items-center"
+            >
+              <span>{z.name}</span>
+              <span className="text-xs text-gray-400">ID: {z.id}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {isOpen && filteredZones.length === 0 && inputValue.trim() !== '' && (
+        <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg text-xs text-gray-500 px-3 py-2">
+          No zones match “{inputValue}”
+        </div>
+      )}
+    </div>
+  );
+};
+
+
 
 
 const API_BASE_URL = 'http://localhost:3001/api'; //server url
@@ -189,42 +559,28 @@ const TripPlannerPage = ({ estimate, loading, handleEstimateTrip, recommendedDes
       <div className="bg-gray-100 p-6 rounded-xl shadow border border-gray-200">
         <div className="flex flex-col space-y-4">
           {/* Start Location */}
+          {/* Start Location */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Start Location
-            </label>
-            <select
-              className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm"
+            <ZoneAutocomplete
+              label="Start Location"
               value={startLocation}
-              onChange={(e) => setStartLocation(e.target.value)}
-            >
-              <option value="">Select start location</option>
-              {TLC_ZONES.map((z) => (
-                <option key={z.id} value={z.id}>
-                  {z.name} (ID: {z.id})
-                </option>
-              ))}
-            </select>
+              onChange={(id) => setStartLocation(id)}
+              placeholder="Type zone name or ID"
+            />
           </div>
 
+
           {/* End Location */}
+          {/* Start Location */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              End Location
-            </label>
-            <select
-              className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm"
+            <ZoneAutocomplete
+              label="End Location"
               value={endLocation}
-              onChange={(e) => setEndLocation(e.target.value)}
-            >
-              <option value="">Select end location</option>
-              {TLC_ZONES.map((z) => (
-                <option key={z.id} value={z.id}>
-                  {z.name} (ID: {z.id})
-                </option>
-              ))}
-            </select>
+              onChange={(id) => setEndLocation(id)}
+              placeholder="Type zone name or ID"
+            />
           </div>
+
 
           {/* Time Inputs */}
           <div className="grid grid-cols-2 gap-4">
@@ -488,19 +844,14 @@ const TrafficDashboardPage = ({ trafficData, loading, handleFetchTraffic }) => {
         <div className="flex flex-col md:flex-row md:items-center md:space-x-4 space-y-3 md:space-y-0">
           <div className="flex-1">
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Select TLC Zone
+              Input TLC Zone
             </label>
-            <select
-              className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm"
-              value={selectedZoneId}
-              onChange={(e) => setSelectedZoneId(Number(e.target.value))}
-            >
-              {TLC_ZONES.map((z) => (
-                <option key={z.id} value={z.id}>
-                  {z.name} (ID: {z.id})
-                </option>
-              ))}
-            </select>
+            <ZoneAutocomplete
+              label="Select TLC Zone"
+              value={selectedZoneId?.toString() ?? ''}
+              onChange={(id) => setSelectedZoneId(Number(id))}
+              placeholder="Type zone name or ID"
+            />
           </div>
 
           <button
