@@ -483,7 +483,6 @@ const TrafficDashboardPage = ({ trafficData, loading, handleFetchTraffic }) => {
         View average hourly inflow/outflow (in &amp; out combined) for a given zone, comparing workdays vs weekends.
       </p>
 
-      {/*  */}
       <div className="bg-gray-100 p-4 rounded-xl shadow border border-gray-200">
         <div className="flex flex-col md:flex-row md:items-center md:space-x-4 space-y-3 md:space-y-0">
           <div className="flex-1">
