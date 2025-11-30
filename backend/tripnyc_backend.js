@@ -63,7 +63,7 @@ const queryAverageTravelTime = async (startId, endId, startTimeStr, endTimeStr) 
 
 const queryWavFulfillmentRate = async () => {
   try {
-    const result = await pool.query(QUERIES.GET_WAV_FULFILLMENT_RATE);
+    const result = await pool.query(QUERIES.GET_WAV_FULFILLMENT_RATE_MV);
     return result.rows;
   } catch (err) {
     console.error("Database query error in queryWavFulfillmentRate:", err);
@@ -73,7 +73,7 @@ const queryWavFulfillmentRate = async () => {
 
 const queryWavRequestPercentage = async () => {
   try {
-    const result = await pool.query(QUERIES.GET_WAV_REQUEST_PERCENTAGE);
+    const result = await pool.query(QUERIES.GET_WAV_REQUEST_PERCENTAGE_MV);
     return result.rows;
   } catch (err) {
     console.error("Database query error in queryWavRequestPercentage:", err);
@@ -83,7 +83,7 @@ const queryWavRequestPercentage = async () => {
 
 const queryWavWaitTime = async () => {
   try {
-    const result = await pool.query(QUERIES.GET_WAV_WAIT_TIME);
+    const result = await pool.query(QUERIES.GET_WAV_WAIT_TIME_MV);
     return result.rows;
   } catch (err) {
     console.error("Database query error in queryWavWaitTime:", err);
