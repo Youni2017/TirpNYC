@@ -904,7 +904,7 @@ const TripPlannerPage = ({
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Trip Type
               </label>
-              <div className="flex flex-col space-x-4">
+              <div className="flex flex-col space-y-2">
                 <label className="flex items-center">
                   <input
                     type="radio"
