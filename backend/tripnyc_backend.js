@@ -378,81 +378,33 @@ app.get('/api/recommend-destinations', async (req, res) => {
     }
 });
 
-const queryRouteHotspots = async () => {
-  const sql = `
-  WITH zone_cte AS (
-  SELECT id, zone_name FROM zone
-  ),
-  combined_trips AS (
-  SELECT
-    pickup_location,
-    dropoff_location,
-    total_amount
-  FROM yellow_taxi_trip
-  WHERE
-    EXTRACT(HOUR FROM pickup_datetime) >= 17
-    AND EXTRACT(HOUR FROM pickup_datetime) < 19
+const TIME_SLOT_MV_MAP = {
+    'morning': 'top_morning_routes_mv',      // e.g., 7:00 to 9:59
+    'noon': 'top_noon_routes_mv',            // e.g., 10:00 to 13:59
+    'afternoon': 'top_afternoon_routes_mv',  // e.g., 14:00 to 16:59
+    'evening': 'top_evening_routes_mv',      // e.g., 17:00 to 19:59
+    'night': 'top_night_routes_mv',          // e.g., 20:00 to 23:59
+};
 
+const queryRouteHotspots = async (timeSlotKey) => {
+    const mvName = TIME_SLOT_MV_MAP[timeSlotKey];
 
-  UNION ALL
+    if (!mvName) {
+        throw new Error(`Invalid time slot key: ${timeSlotKey}`);
+    }
 
+    const query = `
+        SELECT *
+        FROM ${mvName}
+    `;
 
-  SELECT
-    pickup_location,
-    dropoff_location,
-    total_amount
-  FROM green_taxi_trip
-  WHERE
-    EXTRACT(HOUR FROM pickup_datetime) >= 17
-    AND EXTRACT(HOUR FROM pickup_datetime) < 19
-
-
-  UNION ALL
-
-
-  SELECT
-    pickup_location,
-    dropoff_location,
-    total_amount
-  FROM fhv_trip
-  WHERE
-    EXTRACT(HOUR FROM pickup_datetime) >= 17
-    AND EXTRACT(HOUR FROM pickup_datetime) < 19
-  ),
-  aggregated_routes AS (
-    SELECT
-        pickup_location,
-        dropoff_location,
-        COUNT(*) AS total_trip_count,
-        ROUND(AVG(total_amount), 2) AS average_fare
-    FROM combined_trips
-    GROUP BY
-        pickup_location,
-        dropoff_location
-    HAVING pickup_location < dropoff_location
-    ORDER BY
-        total_trip_count DESC
-    LIMIT 10
-  )
-  SELECT
-  pu.zone_name AS departure_zone,
-  doo.zone_name AS arrival_zone,
-  ar.total_trip_count,
-  ar.average_fare
-  FROM aggregated_routes ar
-  INNER JOIN zone_cte pu ON ar.pickup_location = pu.id
-  INNER JOIN zone_cte doo ON ar.dropoff_location = doo.id
-  ORDER BY
-  ar.total_trip_count DESC;
-  `;
-
-  try {
-    const result = await pool.query(sql);
-    return result.rows; 
-  } catch (err) {
-    console.error("Database query error in queryRouteHotspots:", err);
-    throw new Error("Failed to retrieve route hotspot data from the analytics database.");
-  }
+    try {
+        const result = await pool.query(query);
+        return result.rows;
+    } catch (err) {
+        console.error("Database query error in queryRouteHotspots:", err);
+        throw new Error(`Failed to retrieve route hotspots from MV: ${mvName}`);
+    }
 };
 
 app.post('/api/estimate-trip', async (req, res) => {
@@ -516,116 +468,7 @@ app.post('/api/estimate-trip', async (req, res) => {
 //Youni's part
 // ---- Traffic Dashboard Query ----
 const queryTrafficFlow = async (locationId) => {
-  const trafficQuery = `
-    WITH all_trips AS (
-        SELECT pickup_datetime AS trip_time
-        FROM yellow_taxi_trip
-        WHERE pickup_location = $1
-          AND pickup_datetime >= '2025-08-01 00:00:00'
-          AND pickup_datetime <  '2025-08-31 00:00:00'
-
-        UNION ALL
-
-        SELECT pickup_datetime AS trip_time
-        FROM green_taxi_trip
-        WHERE pickup_location = $1
-          AND pickup_datetime >= '2025-08-01 00:00:00'
-          AND pickup_datetime <  '2025-08-31 00:00:00'
-
-        UNION ALL
-
-        SELECT pickup_datetime AS trip_time
-        FROM fhv_trip
-        WHERE pickup_location = $1
-          AND pickup_datetime >= '2025-08-01 00:00:00'
-          AND pickup_datetime <  '2025-08-31 00:00:00'
-
-        UNION ALL
-
-        SELECT dropoff_datetime AS trip_time
-        FROM yellow_taxi_trip
-        WHERE dropoff_location = $1
-          AND dropoff_datetime >= '2025-08-01 00:00:00'
-          AND dropoff_datetime <  '2025-08-31 00:00:00'
-
-        UNION ALL
-
-        SELECT dropoff_datetime AS trip_time
-        FROM green_taxi_trip
-        WHERE dropoff_location = $1
-          AND dropoff_datetime >= '2025-08-01 00:00:00'
-          AND dropoff_datetime <  '2025-08-31 00:00:00'
-
-        UNION ALL
-
-        SELECT dropoff_datetime AS trip_time
-        FROM fhv_trip
-        WHERE dropoff_location = $1
-          AND dropoff_datetime >= '2025-08-01 00:00:00'
-          AND dropoff_datetime <  '2025-08-31 00:00:00'
-    ),
-
-    days AS (
-        SELECT generate_series(
-            '2025-08-01'::date,
-            '2025-08-31'::date - INTERVAL '1 day',
-            INTERVAL '1 day'
-        )::date AS d
-    ),
-
-    hours AS (
-        SELECT generate_series(0, 23) AS hour_of_day
-    ),
-
-    calendar AS (
-        SELECT
-            d.d AS trip_date,
-            h.hour_of_day,
-            CASE
-                WHEN EXTRACT(ISODOW FROM d.d) IN (6, 7) THEN 'weekend'
-                ELSE 'workday'
-            END AS day_type
-        FROM days d
-        CROSS JOIN hours h
-    ),
-
-
-    per_day_hour AS (
-        SELECT
-            date_trunc('day', trip_time)::date AS trip_date,
-            EXTRACT(HOUR FROM trip_time)::int AS hour_of_day,
-            COUNT(*) AS trip_count
-        FROM all_trips
-        GROUP BY
-            date_trunc('day', trip_time)::date,
-            EXTRACT(HOUR FROM trip_time)::int
-    ),
-
-    calendar_with_counts AS (
-        SELECT
-            c.trip_date,
-            c.hour_of_day,
-            c.day_type,
-            COALESCE(p.trip_count, 0) AS trip_count
-        FROM calendar c
-        LEFT JOIN per_day_hour p
-          ON c.trip_date = p.trip_date
-         AND c.hour_of_day = p.hour_of_day
-    )
-
-    SELECT
-        hour_of_day,
-        ROUND(AVG(CASE WHEN day_type = 'workday' THEN trip_count END), 2) AS avg_workday_trips,
-        ROUND(AVG(CASE WHEN day_type = 'weekend' THEN trip_count END), 2) AS avg_weekend_trips
-    FROM
-        calendar_with_counts
-    GROUP BY
-        hour_of_day
-    ORDER BY
-        hour_of_day;
-  `;
-
-  const result = await pool.query(trafficQuery, [locationId]);
+  const result = await pool.query(QUERIES.GET_TRAFFIC_FLOW, [locationId]);
   return result.rows;  
 };
 
@@ -648,31 +491,63 @@ app.get('/api/traffic-dashboard', async (req, res) => {
   }
 });
 
-app.post('/api/route-hotspots', async (req, res) => {
-  const { startTime, endTime } = req.body;
+// app.post('/api/route-hotspots', async (req, res) => {
+//   const { startTime, endTime } = req.body;
 
-  if (!startTime || !endTime) {
-    return res.status(400).json({ error: 'Missing startTime or endTime.' });
-  }
+//   if (!startTime || !endTime) {
+//     return res.status(400).json({ error: 'Missing startTime or endTime.' });
+//   }
 
-  console.log(`[API CALL] /api/route-hotspots from ${startTime} to ${endTime}`);
+//   console.log(`[API CALL] /api/route-hotspots from ${startTime} to ${endTime}`);
 
-  try {
-    const hotspots = await queryRouteHotspots(startTime, endTime);
-    if (!hotspots || hotspots.length === 0) {
-      return res.status(404).json({ error: 'No data for this time range.' });
+//   try {
+//     const hotspots = await queryRouteHotspots(startTime, endTime);
+//     if (!hotspots || hotspots.length === 0) {
+//       return res.status(404).json({ error: 'No data for this time range.' });
+//     }
+//     res.json(hotspots);
+//   } catch (error) {
+//     console.error('Failed to fetch route hotspots:', error.message);
+//     res.status(500).json({ error: error.message || 'Internal server error while fetching route hotspots.' });
+//   }
+// });
+
+app.get('/api/route-hotspots', async (req, res) => {
+    const { timeSlot } = req.query; 
+
+    if (!timeSlot) {
+        return res.status(400).json({ error: 'Missing timeSlot parameter.' });
     }
-    res.json(hotspots);
-  } catch (error) {
-    console.error('Failed to fetch route hotspots:', error.message);
-    res.status(500).json({ error: error.message || 'Internal server error while fetching route hotspots.' });
-  }
+
+    
+    if (!TIME_SLOT_MV_MAP[timeSlot.toLowerCase()]) {
+        return res.status(400).json({ error: `Invalid time slot: ${timeSlot}. Must be one of: ${Object.keys(TIME_SLOT_MV_MAP).join(', ')}` });
+    }
+
+    console.log(`[API CALL] Top Routes during slot: ${timeSlot}`);
+
+    try {
+        const destinations = await queryRouteHotspots(timeSlot.toLowerCase());
+
+        if (destinations.length === 0) {
+            return res.status(404).json({ message: "No frequent destinations found for this criteria." });
+        }
+        res.json(destinations);
+
+    } catch (error) {
+        console.error("Failed to process top routes MV query:", error.message);
+        res.status(500).json({ error: error.message || "Internal server error during data fetching." });
+    }
 });
 
+const PROVIDER_MAP = {
+  'HV0003': 'Uber',
+  'HV0005': 'Lyft',
+};
 
 app.get('/api/accessibility-report', async (req, res) => {
   console.log('[API CALL] Accessibility Report requested. Running two queries...');
-
+  
   try {
     const [fulfillmentData, requestPercentageData, waitTimeData] = await Promise.all([
       queryWavFulfillmentRate(),
@@ -681,19 +556,19 @@ app.get('/api/accessibility-report', async (req, res) => {
     ]);
 
     const wavFulfillment = fulfillmentData.map(row => ({
-      provider: row.service_provider,
+      provider: PROVIDER_MAP[row.service_provider] || row.service_provider,
       fulfillmentRate: parseFloat(row.fulfillment_percentage || 0),
       totalRequests: parseInt(row.total_wav_requests || 0, 10),
     }));
 
     const requestPercentages = requestPercentageData.map(row => ({
-        provider: row.service_provider,
+        provider: PROVIDER_MAP[row.service_provider] || row.service_provider,
         percentOfWavRequest: parseFloat(row.percent_of_wav_request || 0),
         totalTrips: parseInt(row.total_trips || 0, 10),
     }));
 
     const waitTime = waitTimeData.map(row => ({
-        provider: row.service_provider,
+        provider: PROVIDER_MAP[row.service_provider] || row.service_provider,
         avgWavWait: parseFloat(row.avg_wav_wait_sec || 0),
         avgNonWavWait: parseFloat(row.avg_non_wav_wait_sec || 0),
     }));

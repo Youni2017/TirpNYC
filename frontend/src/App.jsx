@@ -1,6 +1,6 @@
 import ZoneMarkerMap from './ZoneMarkerMap';
 import React, { useState, useEffect, useCallback } from 'react';
-import { Plane, Compass, BarChart, MapPin, Bus, Car, Zap, Timer, Route } from 'lucide-react';
+import { Plane, Compass, BarChart, MapPin, Bus, Car, Zap, Timer, Route, Clock } from 'lucide-react';
 import {
   LineChart,
   Line,
@@ -843,7 +843,7 @@ const TripPlannerPage = ({
 
   return (
     <div className="space-y-6 p-4 w-full">
-      <h2 className="text-2xl font-bold text-gray-800">Trip Planner (Price & Time Estimator)</h2>
+      <h2 className="text-2xl font-bold text-gray-800">Plan Your Perfect NYC Day!</h2>
       <p className="text-sm text-gray-600">
         Enter zones and time to compare providers (Cost, Time, Wait).
       </p>
@@ -1222,7 +1222,7 @@ const TrafficDashboardPage = ({ trafficData, loading, handleFetchTraffic }) => {
 
   return (
     <div className="space-y-6 p-2">
-      <h2 className="text-2xl font-bold text-gray-800">Traffic Dashboard</h2>
+      <h2 className="text-2xl font-bold text-gray-800">NYC Traffic Pulse</h2>
       <p className="text-sm text-gray-600">
         View average hourly inflow/outflow (in &amp; out combined) for a given zone, comparing workdays vs weekends.
       </p>
@@ -1487,8 +1487,8 @@ const AccessibilityReportPage = ({ accessibilityData, loading, handleFetchAccess
   );
 
   return (
-    <div className="space-y-8 p-4 max-w-4xl mx-auto">
-      <h2 className="text-2xl font-bold text-gray-800">Accessibility Report (WAV Metrics)</h2>
+    <div className="space-y-8 p-4 max-w-7xl mx-auto">
+      <h2 className="text-2xl font-bold text-gray-800">Barrier-Free NYC</h2>
       <p className="text-sm text-gray-600">Analysis of Wheelchair Accessible Vehicle (WAV) request fulfillment, volume, and wait times across ride-hail platforms.</p>
       <section className="space-y-4">
         <h3 className="text-xl font-semibold text-green-700 flex items-center"><Zap className="w-5 h-5 mr-2"/> WAV Fulfillment Performance</h3>
@@ -1502,7 +1502,7 @@ const AccessibilityReportPage = ({ accessibilityData, loading, handleFetchAccess
               <div className="w-full bg-gray-200 rounded-full h-2.5">
                 <div className="bg-green-600 h-2.5 rounded-full transition-all duration-500" style={{ width: `${item.fulfillmentRate}%` }}></div>
               </div>
-              <p className="text-xs text-gray-500 mt-2">Total WAV Requests: {item.totalRequests.toLocaleString()}</p>
+              <p className="text-xs text-gray-500 mt-2">Total WAV Requests Last Month: {item.totalRequests.toLocaleString()}</p>
             </div>
           ))}
         </div>
@@ -1512,7 +1512,7 @@ const AccessibilityReportPage = ({ accessibilityData, loading, handleFetchAccess
         <h3 className="text-xl font-semibold text-indigo-700 flex items-center"><Timer className="w-5 h-5 mr-2"/> Wait Time Disparity (Seconds)</h3>
         <p className="text-sm text-gray-600">Compares the average wait time for fulfilled WAV requests versus standard non-WAV requests.</p>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {waitTime.map(item => (
                 <div key={item.provider} className="bg-indigo-50 p-4 rounded-xl shadow border border-indigo-200">
                     <span className="font-semibold text-indigo-800">{item.provider}</span>
@@ -1525,9 +1525,6 @@ const AccessibilityReportPage = ({ accessibilityData, loading, handleFetchAccess
                             <span className="font-medium text-gray-700">Non-WAV Wait (Avg)</span>
                             <span className="text-lg font-bold text-gray-700">{Math.round(item.avgNonWavWait)}s</span>
                         </div>
-                        <p className="text-xs italic text-indigo-800 pt-1">
-                            WAV wait is **{Math.round(item.avgWavWait - item.avgNonWavWait)}s** longer.
-                        </p>
                     </div>
                 </div>
             ))}
@@ -1557,113 +1554,117 @@ const AccessibilityReportPage = ({ accessibilityData, loading, handleFetchAccess
   );
 }
 
+const TIME_SLOT_OPTIONS = [
+    { key: 'morning', name: 'Morning Peak (7 AM - 10 AM)' },
+    { key: 'noon', name: 'Midday / Lunch (10 AM - 2 PM)' },
+    { key: 'afternoon', name: 'Afternoon (2 PM - 5 PM)' },
+    { key: 'evening', name: 'Evening Peak (5 PM - 8 PM)' },
+    { key: 'night', name: 'Late Evening (8 PM - 12 AM)' },
+];
+
 const RouteHotspotsPage = ({ hotspots, loading, onFetchRouteHotspots }) => {
-  const [startTime, setStartTime] = useState('17:00');
-  const [endTime, setEndTime] = useState('19:00');
+  const [timeSlot, setTimeSlot] = useState(TIME_SLOT_OPTIONS[4].key);
   const [error, setError] = useState('');
 
   const handleSubmit = (e) => {
     e.preventDefault();
     setError('');
 
-    if (!startTime || !endTime) {
-      setError('Please select both start and end time.');
+    if (!timeSlot) {
+      setError('Please select a time slot.');
       return;
     }
-
-    if (startTime >= endTime) {
-      setError('Start time must be earlier than end time.');
-      return;
-    }
-
-    onFetchRouteHotspots({ startTime, endTime });
+    onFetchRouteHotspots({ timeSlot });
   };
 
   return (
-    <div className="space-y-6 p-4">
-      <h2 className="text-2xl font-bold text-gray-800">Route Hotspots</h2>
-      <p className="text-sm text-gray-600">
-        Enter a time range to see the top 10 busiest routes.
+    <div className="space-y-6 p-4 max-w-4xl mx-auto">
+      <h2 className="text-2xl font-bold text-gray-800 border-b pb-2">City Pressure Points</h2>
+      <p className="text-md text-gray-600">
+        Select a 24-hour time slot to instantly view the top 10 busiest taxi and ride-share routes during that period.
       </p>
 
       <form
         onSubmit={handleSubmit}
-        className="bg-gray-50 p-4 rounded-lg border border-gray-200 space-y-4"
+        className="bg-indigo-50 p-6 rounded-xl border border-indigo-200 shadow-md space-y-4"
       >
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4">
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">
-              Start Time
+            <label className="block text-sm font-bold text-indigo-700 mb-2">
+              Select Time Slot
             </label>
-            <input
-              type="time"
-              value={startTime}
-              onChange={(e) => setStartTime(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">
-              End Time
-            </label>
-            <input
-              type="time"
-              value={endTime}
-              onChange={(e) => setEndTime(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
+            {/* 2. Replace time inputs with a single select dropdown */}
+            <select
+              value={timeSlot}
+              onChange={(e) => setTimeSlot(e.target.value)}
+              className="w-full px-4 py-3 border border-indigo-300 rounded-lg text-base appearance-none focus:outline-none focus:ring-4 focus:ring-indigo-200 shadow-sm transition-all"
+            >
+              {/* Optional: Add a placeholder option */}
+              <option value="" disabled>-- Select a Time Slot --</option>
+              {TIME_SLOT_OPTIONS.map(slot => (
+                <option key={slot.key} value={slot.key}>
+                  {slot.name}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 
         {error && (
-          <p className="text-xs text-red-500 mt-1">{error}</p>
+          <p className="text-sm text-red-600 bg-red-100 p-2 rounded-lg mt-2 font-medium">{error}</p>
         )}
 
         <button
           type="submit"
           disabled={loading}
-          className={`mt-2 w-full md:w-auto inline-flex items-center justify-center px-4 py-2 rounded-lg text-sm font-semibold text-white
-            ${loading ? 'bg-indigo-300 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'}
+          className={`mt-4 w-full inline-flex items-center justify-center px-6 py-3 rounded-xl text-lg font-bold text-white transition-all transform hover:scale-[1.01]
+            ${loading ? 'bg-indigo-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700 shadow-xl'}
           `}
         >
-          <MapPin className="w-4 h-4 mr-2" />
-          {loading ? 'Loading...' : 'Load Route Hotspots'}
+          <Clock className="w-5 h-5 mr-2" />
+          {loading ? 'Fetching Hotspots...' : 'View Busiest Routes'}
         </button>
       </form>
 
-      <div className="bg-white p-4 rounded-lg shadow border border-gray-200">
+      <div className="bg-white p-6 rounded-xl shadow-2xl border border-gray-100">
         {loading && hotspots.length === 0 && (
-          <div className="h-24 flex items-center justify-center text-gray-500">
-            Fetching data...
+          <div className="h-48 flex flex-col items-center justify-center text-indigo-500 animate-pulse">
+            <MapPin className="w-8 h-8 mb-3" />
+            <p className="text-lg font-medium">Loading Pre-calculated Hotspots...</p>
           </div>
         )}
 
         {!loading && hotspots.length === 0 && !error && (
-          <div className="h-24 flex items-center justify-center text-gray-500">
-            No data yet. Please choose a time range and click &quot;Load Route Hotspots&quot;.
+          <div className="h-48 flex flex-col items-center justify-center text-gray-500">
+            <MapPin className="w-8 h-8 mb-3" />
+            <p className="text-lg font-medium">Select a time slot and click "View Busiest Routes".</p>
           </div>
         )}
 
         {!loading && hotspots.length > 0 && (
           <div className="overflow-x-auto">
-            <table className="min-w-full text-sm text-left text-gray-700">
-              <thead>
-                <tr className="border-b bg-gray-100">
-                  <th className="px-4 py-2">Rank</th>
-                  <th className="px-4 py-2">Departure Zone</th>
-                  <th className="px-4 py-2">Arrival Zone</th>
+            <h3 className="text-xl font-semibold mb-4 text-gray-800">
+                Top 10 Busiest Routes ({TIME_SLOT_OPTIONS.find(s => s.key === timeSlot)?.name})
+            </h3>
+            <table className="min-w-full text-sm text-left border border-gray-200 rounded-lg overflow-hidden">
+              <thead className="text-xs text-white uppercase bg-indigo-600">
+                <tr>
+                  <th className="px-4 py-3">Rank</th>
+                  <th className="px-4 py-3">Departure Zone</th>
+                  <th className="px-4 py-3">Arrival Zone</th>
+                  <th className="px-4 py-3 text-right">Avg. Fare</th>
                 </tr>
               </thead>
               <tbody>
                 {hotspots.map((row, idx) => (
                   <tr
                     key={`${row.departure_zone}-${row.arrival_zone}-${idx}`}
-                    className="border-b hover:bg-gray-50"
+                    className={`border-b border-gray-100 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-indigo-100`}
                   >
-                    <td className="px-4 py-2 font-medium">{idx + 1}</td>
-                    <td className="px-4 py-2">{row.departure_zone}</td>
-                    <td className="px-4 py-2">{row.arrival_zone}</td>
+                    <td className="px-4 py-3 font-bold text-indigo-700">{idx + 1}</td>
+                    <td className="px-4 py-3">{row.departure_zone}</td>
+                    <td className="px-4 py-3">{row.arrival_zone}</td>
+                    <td className="px-4 py-3 text-right font-mono">${parseFloat(row.average_fare).toFixed(2)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -1732,17 +1733,17 @@ const App = () => {
     }
   }, []);
   
-  const handleFetchRouteHotspots = useCallback(async ({ startTime, endTime }) => {
-  setLoading(true);
-  setRouteHotspots([]);
-  try {
-    const data = await fetchRouteHotspots({ startTime, endTime });
-    setRouteHotspots(data);
-  } catch (error) {
-    console.error('Error fetching route hotspots:', error);
-  } finally {
-    setLoading(false);
-  }
+  const handleFetchRouteHotspots = useCallback(async ({ timeSlot }) => {
+    setLoading(true);
+    setRouteHotspots([]);
+    try {
+      const data = await fetchRouteHotspots({ timeSlot });
+      setRouteHotspots(data);
+    } catch (error) {
+      console.error('Error fetching route hotspots:', error);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   const handleFetchAccessibility = useCallback(async () => {
@@ -1758,20 +1759,21 @@ const App = () => {
     }
   }, []);
 
-const fetchRouteHotspots = async ({ startTime, endTime }) => {
-  console.log('Fetching route hotspots...', startTime, endTime);
+const fetchRouteHotspots = async ({ timeSlot }) => {
+  console.log('Fetching route hotspots for slot:', timeSlot);
   try {
-    const response = await fetch(`${API_BASE_URL}/route-hotspots`, {
-      method: 'POST',
+    const url = `${API_BASE_URL}/route-hotspots?timeSlot=${timeSlot}`;
+    const response = await fetch(url, {
+      method: 'GET',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ startTime, endTime }),
+
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`HTTP error! Status: ${response.status}. Message: ${errorText}`);
+      const errorData = await response.json();
+      throw new Error(`HTTP error! Status: ${response.status}. Message: ${errorData.error || 'Unknown error'}`);
     }
 
     const data = await response.json();
