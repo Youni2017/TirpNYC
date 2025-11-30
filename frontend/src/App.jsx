@@ -780,7 +780,7 @@ const TripPlannerPage = ({
   const [endLocation, setEndLocation] = useState('');
   const [startTime, setStartTime] = useState('00:00');
   const [endTime, setEndTime] = useState('23:59');
-  const [serviceProvider, setServiceProvider] = useState('');
+  const [serviceProvider, setServiceProvider] = useState('Uber');
   const [tripType, setTripType] = useState('taxi'); // 'taxi' or 'fhv'
   const [error, setError] = useState('');
 
@@ -884,7 +884,7 @@ const TripPlannerPage = ({
                   onChange={(e) => setStartTime(e.target.value)}
                   step="60"
                 />
-              </div>
+          </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   End Time (HH:MM) <span className="text-gray-500 text-xs">(optional)</span>
@@ -904,29 +904,29 @@ const TripPlannerPage = ({
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Trip Type
               </label>
-              <div className="flex flex-col space-y-2">
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    name="tripType"
-                    value="taxi"
-                    checked={tripType === 'taxi'}
-                    onChange={(e) => setTripType(e.target.value)}
-                    className="mr-2"
-                  />
-                  <span className="text-sm">Green/Yellow Taxi</span>
-                </label>
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    name="tripType"
-                    value="fhv"
-                    checked={tripType === 'fhv'}
-                    onChange={(e) => setTripType(e.target.value)}
-                    className="mr-2"
-                  />
-                  <span className="text-sm">FHV</span>
-                </label>
+              <div className="inline-flex rounded-xl border border-gray-200 bg-white text-xs overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setTripType('taxi')}
+                  className={`px-3 py-1 ${
+                    tripType === 'taxi'
+                      ? 'bg-indigo-600 text-white'
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  Green/Yellow Taxi
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTripType('fhv')}
+                  className={`px-3 py-1 ${
+                    tripType === 'fhv'
+                      ? 'bg-indigo-600 text-white'
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  FHV
+                </button>
               </div>
             </div>
 
@@ -936,13 +936,15 @@ const TripPlannerPage = ({
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Service Provider
                 </label>
-                <input
-                  type="text"
+                <select
                   className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                  placeholder="e.g., Uber, Lyft"
                   value={serviceProvider}
                   onChange={(e) => setServiceProvider(e.target.value)}
-                />
+                >
+                  <option value="">Select service provider</option>
+                  <option value="Uber">Uber</option>
+                  <option value="Lyft">Lyft</option>
+                </select>
               </div>
             )}
 
@@ -1002,9 +1004,9 @@ const TripPlannerPage = ({
                   }`}
                 >
                   Edit End
-                </button>
-              </div>
-            </div>
+          </button>
+        </div>
+      </div>
 
             <div className="text-xs text-gray-500 mb-2">
               <div>Start: {getZoneLabel(startLocation) || 'Not selected'}</div>
@@ -1026,13 +1028,13 @@ const TripPlannerPage = ({
 
       {/* Loading State */}
       {loading && (
-        <div className="mt-4">
+      <div className="mt-4">
           <div className="bg-indigo-50 p-4 rounded-lg shadow border border-indigo-200 text-center">
             <div className="flex items-center justify-center">
               <LoadingSpinner color="text-indigo-600" />
               <span className="text-indigo-700">Loading trip estimate...</span>
-            </div>
-          </div>
+        </div>
+      </div>
         </div>
       )}
 
@@ -1240,7 +1242,7 @@ const TrafficDashboardPage = ({ trafficData, loading, handleFetchTraffic }) => {
 
               <label className="block text-sm font-medium text-gray-800 mb-1">
                 Choose your destination zone
-              </label>
+            </label>
 
               <div className="zone-input">
                 <ZoneAutocomplete
@@ -1258,25 +1260,25 @@ const TrafficDashboardPage = ({ trafficData, loading, handleFetchTraffic }) => {
                 </span>
                 ; this textbox will update automatically.
               </p>
-            </div>
+          </div>
 
-            <button
-              onClick={handleLoadClick}
-              disabled={loading}
+          <button
+            onClick={handleLoadClick}
+            disabled={loading}
               className={`mt-5 w-full inline-flex items-center justify-center rounded-xl px-4 py-3 text-sm font-semibold
                 ${loading ? 'bg-indigo-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700 cursor-pointer'}
                 text-white shadow-sm transition-colors duration-150`}
-            >
-              <BarChart className="h-5 w-5 mr-2" />
-              {loading ? 'Loading...' : 'LOAD TREND DATA'}
-            </button>
+          >
+            <BarChart className="h-5 w-5 mr-2" />
+            {loading ? 'Loading...' : 'LOAD TREND DATA'}
+          </button>
 
-            {error && (
-              <p className="mt-2 text-sm text-red-600">
-                Error: {error}
-              </p>
-            )}
-          </div>
+        {error && (
+          <p className="mt-2 text-sm text-red-600">
+            Error: {error}
+          </p>
+        )}
+      </div>
 
           <div className="md:w-2/3 w-full flex flex-col">
             <div className="flex items-center justify-between mb-2">
@@ -1454,12 +1456,12 @@ const AccessibilityReportPage = ({ accessibilityData, loading, handleFetchAccess
   if (loading && !accessibilityData) {
     return (
       <div className="w-full space-y-6 p-4">
-        <h2 className="text-2xl font-bold text-gray-800">Accessibility Report</h2>
-        <div className="bg-gray-100 p-6 rounded-lg h-48 flex items-center justify-center text-gray-500 border border-gray-200">
+    <h2 className="text-2xl font-bold text-gray-800">Accessibility Report</h2>
+    <div className="bg-gray-100 p-6 rounded-lg h-48 flex items-center justify-center text-gray-500 border border-gray-200">
           <LoadingSpinner color="text-gray-500" /> Compiling Comprehensive Accessibility Report...
-        </div>
-      </div>
-    );
+    </div>
+  </div>
+);
   }
 
   if (!accessibilityData) {
@@ -1469,9 +1471,9 @@ const AccessibilityReportPage = ({ accessibilityData, loading, handleFetchAccess
             <div className="text-red-600 p-4 border border-red-300 bg-red-50 rounded-lg">
                 <p className='font-semibold'>Error: Could not load accessibility data.</p>
                 <p className='text-sm'>Please ensure the Node.js backend is running and the PostgreSQL connection details are correct.</p>
-            </div>
-        </div>
-    );
+    </div>
+  </div>
+);
   }
   const { wavFulfillment, requestPercentages, waitTime } = accessibilityData;
 

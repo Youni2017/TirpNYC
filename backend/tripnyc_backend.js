@@ -105,6 +105,12 @@ const queryRecommendedDestinations = async (departureZoneId, startTime, endTime)
 
 // --- API Endpoints ---
 
+// Provider code mapping: display name -> database code
+const PROVIDER_CODE_MAP = {
+  'Uber': 'HV0003',
+  'Lyft': 'HV0005',
+};
+
 // Health Check
 app.get('/api/status', (req, res) => {
   res.json({ status: 'ok', message: 'TripNYC Backend is running.' });
@@ -197,9 +203,12 @@ const queryFHVData = async (startId, endId, startTime, endTime, serviceProvider)
   }
 
   // Add service provider condition if provided
+  // Convert display name (Uber/Lyft) to code (HV0003/HV0005) for database query
   if (serviceProvider) {
+    const providerCode = PROVIDER_CODE_MAP[serviceProvider] || serviceProvider;
+    console.log(`[queryFHVData] Converting "${serviceProvider}" -> "${providerCode}"`);
     timeConditions.push(`service_provider = $${paramIndex}`);
-    queryParams.push(serviceProvider);
+    queryParams.push(providerCode);
     paramIndex++;
   }
 
@@ -220,8 +229,35 @@ const queryFHVData = async (startId, endId, startTime, endTime, serviceProvider)
       ${timeWhereClause};
   `;
 
+  console.log(`[queryFHVData] Query params:`, queryParams);
+  console.log(`[queryFHVData] SQL query:`, fhvQuery);
+
   try {
     const fhvResult = await pool.query(fhvQuery, queryParams);
+    console.log(`[queryFHVData] Result rows:`, fhvResult.rows.length);
+    console.log(`[queryFHVData] Result data:`, fhvResult.rows[0]);
+
+    // Debug: Check if there's ANY FHV data for these locations
+    if (fhvResult.rows.length === 0 || fhvResult.rows[0].avg_total_amount === null) {
+      const debugQuery = `
+        SELECT COUNT(*) as total_count
+        FROM fhv_trip
+        WHERE pickup_location = $1 AND dropoff_location = $2;
+      `;
+      const debugResult = await pool.query(debugQuery, [startId, endId]);
+      console.log(`[queryFHVData DEBUG] Total FHV trips for ${startId} -> ${endId}:`, debugResult.rows[0]?.total_count || 0);
+      
+      if (serviceProvider) {
+        const providerCode = PROVIDER_CODE_MAP[serviceProvider] || serviceProvider;
+        const providerDebugQuery = `
+          SELECT COUNT(*) as provider_count
+          FROM fhv_trip
+          WHERE pickup_location = $1 AND dropoff_location = $2 AND service_provider = $3;
+        `;
+        const providerDebugResult = await pool.query(providerDebugQuery, [startId, endId, providerCode]);
+        console.log(`[queryFHVData DEBUG] Trips for provider "${providerCode}":`, providerDebugResult.rows[0]?.provider_count || 0);
+      }
+    }
 
     if (fhvResult.rows.length > 0 && fhvResult.rows[0].avg_total_amount !== null) {
         return fhvResult.rows[0];
@@ -286,7 +322,7 @@ const queryAllProvidersComparison = async (startId, endId, startTime, endTime) =
         total_amount
       FROM fhv_trip
       WHERE 
-        service_provider = 'Uber'
+        service_provider = 'HV0003'
         AND pickup_location = $1         
         AND dropoff_location = $2
         ${timeWhereClause}
@@ -297,7 +333,7 @@ const queryAllProvidersComparison = async (startId, endId, startTime, endTime) =
         total_amount
       FROM fhv_trip
       WHERE 
-        service_provider = 'Lyft'
+        service_provider = 'HV0005'
         AND pickup_location = $1         
         AND dropoff_location = $2
         ${timeWhereClause}
@@ -308,7 +344,7 @@ const queryAllProvidersComparison = async (startId, endId, startTime, endTime) =
         total_amount
       FROM fhv_trip
       WHERE 
-        service_provider NOT IN ('Uber', 'Lyft')
+        service_provider NOT IN ('HV0003', 'HV0005')
         AND pickup_location = $1         
         AND dropoff_location = $2
         ${timeWhereClause}
@@ -421,7 +457,7 @@ app.post('/api/estimate-trip', async (req, res) => {
     return res.status(400).json({ error: 'Service provider is required for FHV trips.' });
   }
 
-  console.log(`[API CALL] Trip Estimate: ${startLocation} to ${endLocation}, Type: ${tripType}, Start: ${startTime || 'N/A'}, End: ${endTime || 'N/A'}`);
+  console.log(`[API CALL] Trip Estimate: ${startLocation} to ${endLocation}, Type: ${tripType}, Provider: ${serviceProvider || 'N/A'}, Start: ${startTime || 'N/A'}, End: ${endTime || 'N/A'}`);
 
   try {
     let result;
@@ -429,7 +465,9 @@ app.post('/api/estimate-trip', async (req, res) => {
     if (tripType === 'taxi') {
       result = await queryTaxiData(startLocation, endLocation, startTime || null, endTime || null);
     } else if (tripType === 'fhv') {
+      console.log(`[ESTIMATE-TRIP] Calling queryFHVData with serviceProvider: "${serviceProvider}"`);
       result = await queryFHVData(startLocation, endLocation, startTime || null, endTime || null, serviceProvider);
+      console.log(`[ESTIMATE-TRIP] queryFHVData returned:`, result);
     } else {
       return res.status(400).json({ error: 'Invalid tripType. Must be "taxi" or "fhv".' });
     }
