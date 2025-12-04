@@ -591,6 +591,43 @@ app.get('/api/accessibility-report', async (req, res) => {
   }
 });
 
+app.get('/api/accessibility-report/fulfillment-rate', async (req, res) => {
+  try {
+    const rows = await queryWavFulfillmentRate();
+    const data = rows.map(r => ({ provider: PROVIDER_MAP[r.service_provider] || r.service_provider, fulfillmentRate: parseFloat(r.fulfillment_percentage || 0), totalRequests: Number(r.total_wav_requests || 0) }));
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message || 'Failed to fetch fulfillment rate' });
+  }
+});
+
+app.get('/api/accessibility-report/request-percentage', async (req, res) => {
+  try {
+    const rows = await queryWavRequestPercentage();
+    const data = rows.map(r => ({ provider: PROVIDER_MAP[r.service_provider] || r.service_provider, percent: parseFloat(r.percent_of_wav_request || 0), totalTrips: Number(r.total_trips || 0) }));
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message || 'Failed to fetch request percentage' });
+  }
+});
+
+app.get('/api/accessibility-report/wait-time', async (req, res) => {
+  try {
+    const rows = await queryWavWaitTime();
+    const waitTime = rows.map(row => ({
+        provider: PROVIDER_MAP[row.service_provider] || row.service_provider,
+        avgWavWait: parseFloat(row.avg_wav_wait_sec || 0),
+        avgNonWavWait: parseFloat(row.avg_non_wav_wait_sec || 0),
+    }));
+    res.json(waitTime);
+  } catch (err) {
+    res.status(500).json({ error: err.message || 'Failed to fetch wait time' });
+  }
+
+  
+
+});
+
 /*************************************************/
 
 
