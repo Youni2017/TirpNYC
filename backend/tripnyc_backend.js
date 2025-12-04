@@ -9,20 +9,15 @@ const express = require('express');
 const cors = require('cors');
 const { Pool } = require('pg');
 const fs = require('fs');
+const path = require('path');
 const QUERIES = require('./queries');
 const app = express();
 const PORT = 3001;
 
 app.use(cors()); // Allows the React app to access the API
+app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json()); // To parse incoming JSON requests
 
-// Mock Data Structures (get from the database)
-const TLC_ZONES = [
-  { id: 1, name: "Newark Airport" },
-  { id: 4, name: "Central Park" },
-  { id: 10, name: "Midtown Center" },
-  { id: 24, name: "JFK Airport" },
-];  
 
 const pool = new Pool({
   user: 'group29',
@@ -626,6 +621,10 @@ app.get('/api/accessibility-report/wait-time', async (req, res) => {
 
   
 
+});
+
+app.use((req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 /*************************************************/
