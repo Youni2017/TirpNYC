@@ -880,7 +880,7 @@ const TripPlannerPage = ({
     <div className="space-y-6 p-4 w-full">
       <h2 className="text-2xl font-bold text-gray-800">Plan Your Perfect NYC Day!</h2>
       <p className="text-sm text-gray-600">
-        Enter zones and time to compare providers (Cost, Time, Wait).
+        Enter zones and time to compare providers!
       </p>
 
       {/* table + map */}
@@ -1259,7 +1259,7 @@ const TrafficDashboardPage = ({ trafficData, loading, handleFetchTraffic }) => {
     <div className="space-y-6 p-2">
       <h2 className="text-2xl font-bold text-gray-800">NYC Traffic Pulse</h2>
       <p className="text-sm text-gray-600">
-        View average hourly inflow/outflow (in &amp; out combined) for a given zone, comparing workdays vs weekends.
+        Get the hourly traffic snapshot! Instantly compare a zone's total average vehicle activity across workdays and weekends.
       </p>
 
       <div className="bg-gray-100 p-4 rounded-xl shadow border border-gray-200">
@@ -1512,7 +1512,7 @@ const WavFulfillmentSection = ({ wavFulfillment }) => {
                     {item.fulfillmentRate.toFixed(2)}%
                   </p>
                   
-                  
+
                   <div className="w-full bg-gray-200 rounded-full h-3">
                     <div 
                       className="bg-green-600 h-3 rounded-full transition-all duration-1000 ease-out" 
@@ -1659,7 +1659,7 @@ const AccessibilityReportPage = ({ accessibilityData, loading, handleFetchAccess
         <div className="space-y-8 p-4 max-w-7xl mx-auto">
             <h2 className="text-2xl font-bold text-gray-800">Barrier-Free NYC</h2>
             <p className="text-sm text-gray-600">
-                Analysis of Wheelchair Accessible Vehicle (WAV) request fulfillment, volume, and wait times across ride-hail platforms.
+                A comprehensive report assessing how effectively ride-hail platforms are meeting the demand for Wheelchair Accessible Vehicles.
             </p>
 
             {/* Section Navigation Cards */}
@@ -1721,7 +1721,7 @@ const RouteHotspotsPage = ({ hotspots, loading, onFetchRouteHotspots }) => {
     <div className="space-y-6 p-4 max-w-4xl mx-auto">
       <h2 className="text-2xl font-bold text-gray-800 border-b pb-2">City Pressure Points</h2>
       <p className="text-md text-gray-600">
-        Select a 24-hour time slot to instantly view the top 10 busiest taxi and ride-share routes during that period.
+        Quickly identify the top 10 highest-demand routes to understand where the city is moving and when!
       </p>
 
       <form
