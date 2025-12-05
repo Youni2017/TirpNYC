@@ -1049,7 +1049,7 @@ const TripPlannerPage = ({
               <div>End:&nbsp;&nbsp;&nbsp;{getZoneLabel(endLocation) || 'Not selected'}</div>
             </div>
 
-            <div className="flex-1 min-h-[260px] rounded-lg overflow-hidden border border-gray-200 bg-white">
+            <div className="flex-1 min-h-[260px] rounded-lg overflow-hidden border border-gray-200 bg-white relative" style={{ isolation: 'isolate' }}>
               <ZoneMarkerMap
                 zones={MAP_ZONES}
                 startZoneId={startLocation ? Number(startLocation) : null}
@@ -1326,7 +1326,7 @@ const TrafficDashboardPage = ({ trafficData, loading, handleFetchTraffic }) => {
               </span>
             </div>
 
-            <div className="flex-1 min-h-[260px] rounded-lg overflow-hidden border border-gray-200 bg-white">
+            <div className="flex-1 min-h-[260px] rounded-lg overflow-hidden border border-gray-200 bg-white relative" style={{ isolation: 'isolate' }}>
               <ZoneMarkerMap
                 zones={MAP_ZONES}
                 selectedZoneId={selectedZoneId}

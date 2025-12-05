@@ -112,3 +112,14 @@ button:focus-visible {
 .tripnyc-marker-both .tripnyc-marker-inner {
   background: #f97316;
 }
+
+/* Fix Leaflet map z-index to prevent overlay on scroll */
+/* Create a stacking context for map containers to prevent them from overlaying other content */
+.leaflet-container {
+  position: relative !important;
+}
+
+/* Ensure map containers don't escape their parent's stacking context */
+.leaflet-container.leaflet-touch {
+  touch-action: pan-x pan-y;
+}
