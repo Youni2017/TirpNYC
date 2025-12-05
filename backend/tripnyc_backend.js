@@ -71,6 +71,21 @@ const queryWavFulfillmentRate = async () => {
   }
 };
 
+const queryTripTravelTime = async (startId, endId) => {
+  try {
+    const result = await pool.query(QUERIES.GET_TRIP_TRAVEL_TIME, [startId, endId]);
+    
+    if (result.rows.length > 0 && result.rows[0].overall_avg_travel_time_seconds !== null) {
+      return result.rows[0];
+    }
+    return null;
+    
+  } catch (err) {
+    console.error("Database query error in queryTripTravelTime:", err);
+    throw new Error("Failed to retrieve travel time data.");
+  }
+};
+
 const queryWavRequestPercentage = async () => {
   try {
     const result = await pool.query(QUERIES.GET_WAV_REQUEST_PERCENTAGE_MV);
@@ -499,6 +514,15 @@ app.post('/api/estimate-trip', async (req, res) => {
       // Don't fail the main request if comparison fails
     }
 
+    // Also get travel time
+    let travelTimeResult = null;
+    try {
+      travelTimeResult = await queryTripTravelTime(startLocation, endLocation);
+    } catch (travelErr) {
+      console.warn('Failed to fetch travel time:', travelErr);
+      // Don't fail the main request if travel time fails
+    }
+
     if (!result && !comparisonResult) {
         return res.status(404).json({ error: "No historical data found for this route and time interval." });
     }
@@ -506,7 +530,8 @@ app.post('/api/estimate-trip', async (req, res) => {
     // Combine results
     const response = {
       ...(result || {}),
-      ...(comparisonResult || {})
+      ...(comparisonResult || {}),
+      ...(travelTimeResult || {})
     };
 
     res.json(response);

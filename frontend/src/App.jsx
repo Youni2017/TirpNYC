@@ -771,26 +771,26 @@ const fetchAccessibilityReport = async () => {
     // 3. Structure the final data object for the component
     const data = {
         // Section 1: Fulfillment Rate
-        // 修正: fulfillment_percentage -> fulfillmentRate, total_wav_requests -> totalRequests
+        // fulfillment_percentage -> fulfillmentRate, total_wav_requests -> totalRequests
         wavFulfillment: wavFulfillmentData.map(r => ({
             provider: r.provider, 
-            fulfillmentRate: parseFloat(r.fulfillmentRate || 0), // <-- 已修正
-            totalRequests: Number(r.totalRequests || 0),       // <-- 已修正
+            fulfillmentRate: parseFloat(r.fulfillmentRate || 0), 
+            totalRequests: Number(r.totalRequests || 0),   
         })),
 
         // Section 2: Wait Time Disparity
-        // 修正: avg_wav_wait_sec -> avgWavWait, avg_non_wav_wait_sec -> avgNonWavWait
+        // avg_wav_wait_sec -> avgWavWait, avg_non_wav_wait_sec -> avgNonWavWait
         waitTime: waitTimeData.map(r => ({ 
             provider: r.provider, 
-            avgWavWait: parseFloat(r.avgWavWait || 0),         // <-- 已修正
-            avgNonWavWait: parseFloat(r.avgNonWavWait || 0),   // <-- 已修正
+            avgWavWait: parseFloat(r.avgWavWait || 0),        
+            avgNonWavWait: parseFloat(r.avgNonWavWait || 0), 
         })),
 
         // Section 3: Request Volume
-        // 修正: percent_of_wav_request -> percent
+        // percent_of_wav_request -> percent
         requestPercentages: requestPercentagesData.map(r => ({ 
             provider: r.provider, 
-            percentOfWavRequest: parseFloat(r.percent || 0), // <-- 已修正
+            percentOfWavRequest: parseFloat(r.percent || 0),
             totalTrips: Number(r.totalTrips || 0),
         })),
     };
@@ -879,9 +879,6 @@ const TripPlannerPage = ({
   return (
     <div className="space-y-6 p-4 w-full">
       <h2 className="text-2xl font-bold text-gray-800">Plan Your Perfect NYC Day!</h2>
-      <p className="text-sm text-gray-600">
-        Enter zones and time to compare providers!
-      </p>
 
       {/* table + map */}
       <div className="bg-gray-100 p-6 rounded-xl shadow border border-gray-200">
@@ -910,7 +907,7 @@ const TripPlannerPage = ({
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Start Time (HH:MM) <span className="text-gray-500 text-xs">(optional)</span>
+                  Start Time (Hour:Min) <span className="text-gray-500 text-xs">(optional)</span>
                 </label>
                 <input
                   type="time"
@@ -922,7 +919,7 @@ const TripPlannerPage = ({
           </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  End Time (HH:MM) <span className="text-gray-500 text-xs">(optional)</span>
+                  End Time (Hour:Min) <span className="text-gray-500 text-xs">(optional)</span>
                 </label>
                 <input
                   type="time"
@@ -1077,94 +1074,144 @@ const TripPlannerPage = ({
       {/* Results */}
       {!loading && estimate && (
         <div className="mt-4 space-y-4">
-          {/* Selected Provider Results */}
-          <div>
-            <h3 className="text-xl font-semibold text-gray-700 mb-3">
-              Selected Provider Results
-            </h3>
-            <div className="bg-green-50 p-4 rounded-lg shadow border border-green-200">
-              <div className="space-y-2">
-                <div className="text-sm">
-                  <span className="font-semibold">Average Cost: </span>
-                  <span className="text-lg font-bold text-green-700">
+          {/* Combined: Selected Provider (Left) + All Providers Comparison (Right) */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Left: Selected Provider Results */}
+            <div className="bg-gradient-to-br from-green-50 to-green-100 p-5 rounded-xl shadow-lg border border-green-300">
+              <h3 className="text-lg font-bold text-green-800 mb-3 flex items-center">
+                <Car className="w-5 h-5 mr-2" />
+                {tripType === 'taxi' ? 'Green/Yellow Taxi' : (serviceProvider === 'Both' ? 'Uber & Lyft' : serviceProvider || 'FHV')}
+              </h3>
+              <div className="space-y-3">
+                <div className="bg-white/60 backdrop-blur-sm p-3 rounded-lg">
+                  <div className="text-xs text-gray-600 mb-1">Average Cost</div>
+                  <div className="text-3xl font-extrabold text-green-700">
                     ${estimate.avg_total_amount || 'N/A'}
-                  </span>
+                  </div>
                 </div>
 
-                {estimate.min_total_amount !== undefined &&
-                  estimate.min_total_amount !== null && (
-                    <div className="text-sm text-gray-600">
-                      <span className="font-semibold">Min Cost: </span>$
-                      {estimate.min_total_amount}
-                    </div>
-                  )}
-
-                {estimate.max_total_amount !== undefined &&
-                  estimate.max_total_amount !== null && (
-                    <div className="text-sm text-gray-600">
-                      <span className="font-semibold">Max Cost: </span>$
-                      {estimate.max_total_amount}
-                    </div>
-                  )}
-
-                {tripType === 'fhv' &&
-                  estimate.avg_waiting_time !== undefined &&
-                  estimate.avg_waiting_time !== null && (
-                    <div className="text-sm mt-2 pt-2 border-t border-gray-200">
-                      <span className="font-semibold">Average Waiting Time: </span>
-                      <span className="text-lg font-bold text-blue-700">
-                        {estimate.avg_waiting_time} minutes
-                      </span>
-                    </div>
-                  )}
-              </div>
-            </div>
-          </div>
-
-          {/* All Providers Comparison */}
-          {estimate.overall_avg_price !== undefined &&
-            estimate.overall_avg_price !== null && (
-              <div>
-                <h3 className="text-xl font-semibold text-gray-700 mb-3">
-                  All Providers Comparison
-                </h3>
-                <div className="bg-blue-50 p-4 rounded-lg shadow border border-blue-200">
-                  <div className="space-y-2">
-                    <div className="text-sm">
-                      <span className="font-semibold">Overall Average Cost: </span>
-                      <span className="text-lg font-bold text-blue-700">
-                        ${estimate.overall_avg_price}
-                      </span>
-                    </div>
-
-                    {estimate.overall_min_price !== undefined &&
-                      estimate.overall_min_price !== null && (
-                        <div className="text-sm text-gray-600">
-                          <span className="font-semibold">Overall Min Cost: </span>$
-                          {estimate.overall_min_price}
+                <div className={`grid gap-2 ${tripType === 'fhv' && estimate.avg_waiting_time !== undefined && estimate.avg_waiting_time !== null ? 'grid-cols-3' : 'grid-cols-2'}`}>
+                  {estimate.min_total_amount !== undefined &&
+                    estimate.min_total_amount !== null && (
+                      <div className="bg-white/40 p-2 rounded-lg">
+                        <div className="text-xs text-gray-600">Min</div>
+                        <div className="text-lg font-bold text-gray-800">
+                          ${estimate.min_total_amount}
                         </div>
-                      )}
-
-                    {estimate.overall_max_price !== undefined &&
-                      estimate.overall_max_price !== null && (
-                        <div className="text-sm text-gray-600">
-                          <span className="font-semibold">Overall Max Cost: </span>$
-                          {estimate.overall_max_price}
-                        </div>
-                      )}
-
-                    {estimate.recommended_vehicle_type && (
-                      <div className="text-sm mt-2 pt-2 border-t border-gray-200">
-                        <span className="font-semibold">Recommended Provider: </span>
-                        <span className="text-lg font-bold text-purple-700">
-                          {estimate.recommended_vehicle_type}
-                        </span>
                       </div>
                     )}
+
+                  {estimate.max_total_amount !== undefined &&
+                    estimate.max_total_amount !== null && (
+                      <div className="bg-white/40 p-2 rounded-lg">
+                        <div className="text-xs text-gray-600">Max</div>
+                        <div className="text-lg font-bold text-gray-800">
+                          ${estimate.max_total_amount}
+                        </div>
+                      </div>
+                    )}
+
+                  {tripType === 'fhv' &&
+                    estimate.avg_waiting_time !== undefined &&
+                    estimate.avg_waiting_time !== null && (
+                      <div className="bg-white/40 p-2 rounded-lg">
+                        <div className="text-xs text-gray-600 flex items-center">
+                          <Timer className="w-3 h-3 mr-1" /> Estimated wait time
+                        </div>
+                        <div className="text-lg font-bold text-gray-800">
+                          {Math.round(estimate.avg_waiting_time)}mins
+                        </div>
+                      </div>
+                    )}
+                </div>
+              </div>
+            </div>
+
+            {/* Right: All Providers Comparison */}
+            {estimate.overall_avg_price !== undefined &&
+              estimate.overall_avg_price !== null && (
+                <div className="bg-gradient-to-br from-green-50 to-green-100 p-5 rounded-xl shadow-lg border border-green-300">
+                  <h3 className="text-lg font-bold text-green-800 mb-3 flex items-center">
+                    <BarChart className="w-5 h-5 mr-2" />
+                    All Providers Comparison
+                  </h3>
+                  <div className="space-y-3">
+                    <div className="bg-white/60 backdrop-blur-sm p-3 rounded-lg">
+                      <div className="text-xs text-gray-600 mb-1">Overall Average</div>
+                      <div className="text-3xl font-extrabold text-green-700">
+                        ${estimate.overall_avg_price}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      {estimate.overall_min_price !== undefined &&
+                        estimate.overall_min_price !== null && (
+                          <div className="bg-white/40 p-2 rounded-lg">
+                            <div className="text-xs text-gray-600">Min</div>
+                            <div className="text-lg font-bold text-gray-800">
+                              ${estimate.overall_min_price}
+                            </div>
+                          </div>
+                        )}
+
+                      {estimate.overall_max_price !== undefined &&
+                        estimate.overall_max_price !== null && (
+                          <div className="bg-white/40 p-2 rounded-lg">
+                            <div className="text-xs text-gray-600">Max</div>
+                            <div className="text-lg font-bold text-gray-800">
+                              ${estimate.overall_max_price}
+                            </div>
+                          </div>
+                        )}
+                    </div>
+                  </div>
+                </div>
+              )}
+          </div>
+
+          {/* Bottom Row: Best Value and Travel Time */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Best Value */}
+            {estimate.recommended_vehicle_type && (
+              <div className="bg-gradient-to-r from-red-50 to-red-100 p-5 rounded-xl shadow-lg border-2 border-red-300">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <Zap className="w-6 h-6 text-red-600 mr-3" />
+                    <div>
+                      <div className="text-sm text-red-700 font-medium">Best Value</div>
+                      <div className="text-2xl font-extrabold text-red-800">
+                        {estimate.recommended_vehicle_type}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-xs text-red-600 bg-white/50 px-3 py-2 rounded-lg">
+                    Lowest average cost
                   </div>
                 </div>
               </div>
             )}
+
+            {/* Travel Time */}
+            {estimate.overall_avg_travel_time_seconds !== undefined &&
+              estimate.overall_avg_travel_time_seconds !== null && (
+                <div className="bg-gradient-to-r from-red-50 to-red-100 p-5 rounded-xl shadow-lg border-2 border-red-300">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <Clock className="w-6 h-6 text-red-600 mr-3" />
+                      <div>
+                        <div className="text-sm text-red-700 font-medium">Average Travel Time</div>
+                        <div className="text-2xl font-extrabold text-red-800">
+                          {Math.round(estimate.overall_avg_travel_time_seconds / 60)} mins
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-xs text-red-600 bg-white/50 px-3 py-2 rounded-lg">
+                      Historical average
+                    </div>
+                  </div>
+                </div>
+              )}
+          </div>
         </div>
       )}
 
@@ -1179,14 +1226,14 @@ const TripPlannerPage = ({
 
       {/* recommended dest - always show if startLocation is set */}
       {startLocation && (
-        <div className="mt-4">
-          <h3 className="text-xl font-semibold text-indigo-700 mb-3 flex items-center">
+        <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-xl shadow border border-blue-300">
+          <h3 className="text-xl font-semibold text-blue-700 mb-3 flex items-center">
             <Route className="w-5 h-5 mr-2" /> Top Destinations from{' '}
             {TLC_ZONES.find(z => z.id === parseInt(startLocation))?.name ||
               `Zone ${startLocation}`}
           </h3>
           {loading && (
-            <div className="text-gray-500 text-sm p-4 text-center border rounded-lg bg-gray-50">
+            <div className="text-gray-500 text-sm p-4 text-center border rounded-lg bg-white/50">
               Loading destinations...
             </div>
           )}
@@ -1197,11 +1244,11 @@ const TripPlannerPage = ({
                 {recommendedDestinations.map((rec, index) => (
                   <div
                     key={index}
-                    className="bg-white p-3 rounded-lg shadow border border-indigo-300 text-center cursor-pointer hover:bg-indigo-100 transition"
+                    className="bg-blue-50/80 p-3 rounded-lg shadow border border-blue-200 text-center cursor-pointer hover:bg-blue-100/80 transition"
                     onClick={() => setEndLocation(rec.zone_id.toString())}
                   >
-                    <p className="text-lg font-bold text-indigo-600">
-                      {rec.arrival_zone}
+                    <p className="text-lg font-bold text-blue-700">
+                      {rec.arrival_zone}xf
                     </p>
                   </div>
                 ))}
@@ -1259,12 +1306,8 @@ const TrafficDashboardPage = ({ trafficData, loading, handleFetchTraffic }) => {
   };
 
   return (
-    <div className="space-y-6 p-2">
+    <div className="space-y-6 p-4 w-full">
       <h2 className="text-2xl font-bold text-gray-800">NYC Traffic Pulse</h2>
-      <p className="text-sm text-gray-600">
-        Get the hourly traffic snapshot! Instantly compare a zone's total average vehicle activity across workdays and weekends.
-      </p>
-
       <div className="bg-gray-100 p-4 rounded-xl shadow border border-gray-200">
         <div className="flex flex-col md:flex-row md:space-x-6 space-y-6 md:space-y-0 items-stretch">
           <div className="md:w-1/3 w-full flex flex-col">
@@ -1659,11 +1702,8 @@ const AccessibilityReportPage = ({ accessibilityData, loading, handleFetchAccess
     };
 
     return (
-        <div className="space-y-8 p-4 max-w-7xl mx-auto">
+        <div className="space-y-6 p-4 w-full">
             <h2 className="text-2xl font-bold text-gray-800">Barrier-Free NYC</h2>
-            <p className="text-sm text-gray-600">
-                A comprehensive report assessing how effectively ride-hail platforms are meeting the demand for Wheelchair Accessible Vehicles.
-            </p>
 
             {/* Section Navigation Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1708,6 +1748,7 @@ const TIME_SLOT_OPTIONS = [
 const RouteHotspotsPage = ({ hotspots, loading, onFetchRouteHotspots }) => {
   const [timeSlot, setTimeSlot] = useState(TIME_SLOT_OPTIONS[4].key);
   const [error, setError] = useState('');
+  const [selectedRoute, setSelectedRoute] = useState(null); // { startZoneId, endZoneId, departure_zone, arrival_zone }
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -1720,13 +1761,24 @@ const RouteHotspotsPage = ({ hotspots, loading, onFetchRouteHotspots }) => {
     onFetchRouteHotspots({ timeSlot });
   };
 
-  return (
-    <div className="space-y-6 p-4 max-w-4xl mx-auto">
-      <h2 className="text-2xl font-bold text-gray-800 border-b pb-2">City Pressure Points</h2>
-      <p className="text-md text-gray-600">
-        Quickly identify the top 10 highest-demand routes to understand where the city is moving and when!
-      </p>
+  const handleRouteClick = (route) => {
+    // Find zone IDs by name
+    const startZone = TLC_ZONES.find(z => z.name === route.departure_zone);
+    const endZone = TLC_ZONES.find(z => z.name === route.arrival_zone);
+    
+    if (startZone && endZone) {
+      setSelectedRoute({
+        startZoneId: startZone.id,
+        endZoneId: endZone.id,
+        departure_zone: route.departure_zone,
+        arrival_zone: route.arrival_zone
+      });
+    }
+  };
 
+  return (
+    <div className="space-y-6 p-4 w-full">
+      <h2 className="text-2xl font-bold text-gray-800">City Pressure Points</h2>
       <form
         onSubmit={handleSubmit}
         className="bg-indigo-50 p-6 rounded-xl border border-indigo-200 shadow-md space-y-4"
@@ -1769,51 +1821,86 @@ const RouteHotspotsPage = ({ hotspots, loading, onFetchRouteHotspots }) => {
         </button>
       </form>
 
-      <div className="bg-white p-6 rounded-xl shadow-2xl border border-gray-100">
-        {loading && hotspots.length === 0 && (
-          <div className="h-48 flex flex-col items-center justify-center text-indigo-500 animate-pulse">
-            <MapPin className="w-8 h-8 mb-3" />
-            <p className="text-lg font-medium">Loading Pre-calculated Hotspots...</p>
-          </div>
-        )}
+      <div className="bg-gray-100 p-6 rounded-xl shadow border border-gray-200">
+        <div className="flex flex-col lg:flex-row lg:space-x-6 space-y-6 lg:space-y-0">
+          {/* Left: Table */}
+          <div className="lg:w-1/2 w-full">
+            {loading && hotspots.length === 0 && (
+              <div className="h-48 flex flex-col items-center justify-center text-indigo-500 animate-pulse">
+                <MapPin className="w-8 h-8 mb-3" />
+                <p className="text-lg font-medium">Loading Pre-calculated Hotspots...</p>
+              </div>
+            )}
 
-        {!loading && hotspots.length === 0 && !error && (
-          <div className="h-48 flex flex-col items-center justify-center text-gray-500">
-            <MapPin className="w-8 h-8 mb-3" />
-            <p className="text-lg font-medium">Select a time slot and click "View Busiest Routes".</p>
-          </div>
-        )}
+            {!loading && hotspots.length === 0 && !error && (
+              <div className="h-48 flex flex-col items-center justify-center text-gray-500">
+                <MapPin className="w-8 h-8 mb-3" />
+                <p className="text-lg font-medium">Select a time slot and click "View Busiest Routes".</p>
+              </div>
+            )}
 
-        {!loading && hotspots.length > 0 && (
-          <div className="overflow-x-auto">
-            <h3 className="text-xl font-semibold mb-4 text-gray-800">
-                Top 10 Busiest Routes ({TIME_SLOT_OPTIONS.find(s => s.key === timeSlot)?.name})
-            </h3>
-            <table className="min-w-full text-sm text-left border border-gray-200 rounded-lg overflow-hidden">
-              <thead className="text-xs text-white uppercase bg-indigo-600">
-                <tr>
-                  <th className="px-4 py-3">Rank</th>
-                  <th className="px-4 py-3">Departure Zone</th>
-                  <th className="px-4 py-3">Arrival Zone</th>
-                  <th className="px-4 py-3 text-right">Avg. Fare</th>
-                </tr>
-              </thead>
-              <tbody>
-                {hotspots.map((row, idx) => (
-                  <tr
-                    key={`${row.departure_zone}-${row.arrival_zone}-${idx}`}
-                    className={`border-b border-gray-100 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-indigo-100`}
-                  >
-                    <td className="px-4 py-3 font-bold text-indigo-700">{idx + 1}</td>
-                    <td className="px-4 py-3">{row.departure_zone}</td>
-                    <td className="px-4 py-3">{row.arrival_zone}</td>
-                    <td className="px-4 py-3 text-right font-mono">${parseFloat(row.average_fare).toFixed(2)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            {!loading && hotspots.length > 0 && (
+              <div className="overflow-x-auto">
+                <h3 className="text-xl font-semibold mb-4 text-gray-800">
+                    Top 10 Busiest Routes ({TIME_SLOT_OPTIONS.find(s => s.key === timeSlot)?.name})
+                </h3>
+                <table className="min-w-full text-sm text-center border border-gray-200 rounded-lg overflow-hidden bg-white">
+                  <thead className="text-xs text-white uppercase bg-indigo-600">
+                    <tr>
+                      <th className="px-4 py-3 text-center">Rank</th>
+                      <th className="px-4 py-3 text-center">Departure Zone</th>
+                      <th className="px-4 py-3 text-center">Arrival Zone</th>
+                      <th className="px-4 py-3 text-center">Avg. Fare</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {hotspots.map((row, idx) => (
+                      <tr
+                        key={`${row.departure_zone}-${row.arrival_zone}-${idx}`}
+                        onClick={() => handleRouteClick(row)}
+                        className={`border-b border-gray-100 transition-colors cursor-pointer
+                          ${selectedRoute?.departure_zone === row.departure_zone && selectedRoute?.arrival_zone === row.arrival_zone
+                            ? 'bg-indigo-200'
+                            : idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'
+                          } hover:bg-indigo-100`}
+                      >
+                        <td className="px-4 py-3 font-bold text-indigo-700 text-center">{idx + 1}</td>
+                        <td className="px-4 py-3 text-center">{row.departure_zone}</td>
+                        <td className="px-4 py-3 text-center">{row.arrival_zone}</td>
+                        <td className="px-4 py-3 text-center font-mono">${parseFloat(row.average_fare).toFixed(2)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <p className="mt-3 text-xs text-gray-600">
+                  Click on any route to visualize it on the map
+                </p>
+              </div>
+            )}
           </div>
-        )}
+
+          {/* Right: Map */}
+          <div className="lg:w-1/2 w-full flex flex-col">
+            <div className="mb-2">
+              <p className="text-sm font-medium text-gray-700">Route Visualization</p>
+              <p className="text-xs text-gray-500">
+                {selectedRoute 
+                  ? `${selectedRoute.departure_zone} → ${selectedRoute.arrival_zone}`
+                  : 'Click a route from the table to view on map'
+                }
+              </p>
+            </div>
+            <div className="flex-1 min-h-[400px] rounded-lg overflow-hidden border border-gray-200 bg-white relative" style={{ isolation: 'isolate' }}>
+              <ZoneMarkerMap
+                zones={MAP_ZONES}
+                startZoneId={selectedRoute?.startZoneId || null}
+                endZoneId={selectedRoute?.endZoneId || null}
+                onSelectZone={() => {}} // Read-only, no interaction needed
+                showOnlyRoute={true} // Only show start/end pins for route visualization
+              />
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
