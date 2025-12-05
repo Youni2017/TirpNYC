@@ -6,6 +6,7 @@ import {
   Popup,
   CircleMarker,
   Tooltip,
+  useMap,
 } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -21,6 +22,28 @@ L.Icon.Default.mergeOptions({
 });
 
 const defaultIcon = new L.Icon.Default();
+
+// Helper component to fix map initialization issues
+const MapInitializer = () => {
+  const map = useMap();
+
+  useEffect(() => {
+    // Fix click detection by recalculating map size after render
+    const timer = setTimeout(() => {
+      map.invalidateSize();
+    }, 100);
+
+    // Increase tap tolerance to prevent accidental drags on click
+    if (map.tap) {
+      map.tap.disable();
+      map.tap.enable({ tapTolerance: 15 });
+    }
+
+    return () => clearTimeout(timer);
+  }, [map]);
+
+  return null;
+};
 
 /**
  * props:
@@ -67,7 +90,10 @@ const ZoneMarkerMap = ({
       zoom={11}
       style={{ width: '100%', height: '100%' }}
       scrollWheelZoom={true}
+      tapTolerance={15}
+      tap={true}
     >
+      <MapInitializer />
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
