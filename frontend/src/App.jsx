@@ -747,26 +747,61 @@ const fetchTrafficData = async ({ zoneId }) => {
 };
 
 const fetchAccessibilityReport = async () => {
-  console.log('Fetching accessibility data:');
+  console.log('Fetching accessibility data from three new endpoints:');
   try {
-    const response = await fetch(
-      `${API_BASE_URL}/accessibility-report`
-    );
+    // 1. Simultaneous fetch calls to the three new endpoints
+    const [fulfillmentRes, requestRes, waitTimeRes] = await Promise.all([
+      fetch(`${API_BASE_URL}/accessibility-report/fulfillment-rate`),
+      fetch(`${API_BASE_URL}/accessibility-report/request-percentage`),
+      fetch(`${API_BASE_URL}/accessibility-report/wait-time`),
+    ]);
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`HTTP error! Status: ${response.status}. Message: ${errorText}`);
+    // Check for any non-200 responses
+    if (!fulfillmentRes.ok || !requestRes.ok || !waitTimeRes.ok) {
+        const errorResponse = [fulfillmentRes, requestRes, waitTimeRes].find(res => !res.ok);
+        const errorText = await errorResponse.text();
+        throw new Error(`HTTP error! Status: ${errorResponse.status}. Message: ${errorText}`);
     }
 
-    const data = await response.json();
+    // 2. Parse JSON responses
+    const wavFulfillmentData = await fulfillmentRes.json();
+    const requestPercentagesData = await requestRes.json();
+    const waitTimeData = await waitTimeRes.json();
 
+    // 3. Structure the final data object for the component
+    const data = {
+        // Section 1: Fulfillment Rate
+        // 修正: fulfillment_percentage -> fulfillmentRate, total_wav_requests -> totalRequests
+        wavFulfillment: wavFulfillmentData.map(r => ({
+            provider: r.provider, 
+            fulfillmentRate: parseFloat(r.fulfillmentRate || 0), // <-- 已修正
+            totalRequests: Number(r.totalRequests || 0),       // <-- 已修正
+        })),
+
+        // Section 2: Wait Time Disparity
+        // 修正: avg_wav_wait_sec -> avgWavWait, avg_non_wav_wait_sec -> avgNonWavWait
+        waitTime: waitTimeData.map(r => ({ 
+            provider: r.provider, 
+            avgWavWait: parseFloat(r.avgWavWait || 0),         // <-- 已修正
+            avgNonWavWait: parseFloat(r.avgNonWavWait || 0),   // <-- 已修正
+        })),
+
+        // Section 3: Request Volume
+        // 修正: percent_of_wav_request -> percent
+        requestPercentages: requestPercentagesData.map(r => ({ 
+            provider: r.provider, 
+            percentOfWavRequest: parseFloat(r.percent || 0), // <-- 已修正
+            totalTrips: Number(r.totalTrips || 0),
+        })),
+    };
+
+    console.log('Accessibility data compiled (JSON):', JSON.stringify(data, null, 2));
     return data;
   } catch (error) {
-    console.error('API Error in fetchTrafficData:', error);
+    console.error('API Error in fetchAccessibilityReport:', error);
     throw error;
   }
 };
-
 
 // --- UI Components ---
 const TripPlannerPage = ({
@@ -845,7 +880,7 @@ const TripPlannerPage = ({
     <div className="space-y-6 p-4 w-full">
       <h2 className="text-2xl font-bold text-gray-800">Plan Your Perfect NYC Day!</h2>
       <p className="text-sm text-gray-600">
-        Enter zones and time to compare providers (Cost, Time, Wait).
+        Enter zones and time to compare providers!
       </p>
 
       {/* table + map */}
@@ -1226,7 +1261,7 @@ const TrafficDashboardPage = ({ trafficData, loading, handleFetchTraffic }) => {
     <div className="space-y-6 p-2">
       <h2 className="text-2xl font-bold text-gray-800">NYC Traffic Pulse</h2>
       <p className="text-sm text-gray-600">
-        View average hourly inflow/outflow (in &amp; out combined) for a given zone, comparing workdays vs weekends.
+        Get the hourly traffic snapshot! Instantly compare a zone's total average vehicle activity across workdays and weekends.
       </p>
 
       <div className="bg-gray-100 p-4 rounded-xl shadow border border-gray-200">
@@ -1445,74 +1480,69 @@ const TrafficDashboardPage = ({ trafficData, loading, handleFetchTraffic }) => {
 };
 
 
+// --- New Sub-Components for Accessibility Report ---
 
-const AccessibilityReportPage = ({ accessibilityData, loading, handleFetchAccessibility }) => {
-  useEffect(() => {
-    if (accessibilityData === null && !loading) {
-      handleFetchAccessibility();
-    }
-  }, [accessibilityData, loading, handleFetchAccessibility]);
+const WavFulfillmentSection = ({ wavFulfillment }) => {
+    // State to trigger the animation width
+    const [animatedWidths, setAnimatedWidths] = useState({});
 
-  if (loading && !accessibilityData) {
+    useEffect(() => {
+        // Trigger the animation shortly after the component mounts
+        const newWidths = {};
+        wavFulfillment.forEach(item => {
+            // Store the target fulfillment rate for animation
+            newWidths[item.provider] = item.fulfillmentRate;
+        });
+        setAnimatedWidths(newWidths);
+    }, [wavFulfillment]);
+
+
     return (
-      <div className="w-full space-y-6 p-4">
-    <h2 className="text-2xl font-bold text-gray-800">Accessibility Report</h2>
-    <div className="bg-gray-100 p-6 rounded-lg h-48 flex items-center justify-center text-gray-500 border border-gray-200">
-          <LoadingSpinner color="text-gray-500" /> Compiling Comprehensive Accessibility Report...
-    </div>
-  </div>
-);
-  }
+        <div className="space-y-4">
+            <h4 className="text-xl font-semibold text-green-700 flex items-center mb-4">
+                <Zap className="w-5 h-5 mr-2"/> WAV Fulfillment Performance
+            </h4>
+            <p className="text-sm text-gray-600">
+                The historical percentage of requested WAV trips that were successfully matched and fulfilled.
+            </p>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {wavFulfillment.map(item => (
+                <div key={item.provider} className="bg-green-50 p-4 rounded-xl shadow border border-green-200">
+                  <span className="font-semibold text-green-800">{item.provider}</span>
+                  <p className="text-3xl font-bold mt-1 mb-2 text-gray-900">
+                    {item.fulfillmentRate.toFixed(2)}%
+                  </p>
+                  
 
-  if (!accessibilityData) {
-    return (
-        <div className="w-full space-y-6 p-4">
-            <h2 className="text-2xl font-bold text-gray-800">Accessibility Report</h2>
-            <div className="text-red-600 p-4 border border-red-300 bg-red-50 rounded-lg">
-                <p className='font-semibold'>Error: Could not load accessibility data.</p>
-                <p className='text-sm'>Please ensure the Node.js backend is running and the PostgreSQL connection details are correct.</p>
-    </div>
-  </div>
-);
-  }
-  const { wavFulfillment, requestPercentages, waitTime } = accessibilityData;
+                  <div className="w-full bg-gray-200 rounded-full h-3">
+                    <div 
+                      className="bg-green-600 h-3 rounded-full transition-all duration-1000 ease-out" 
+                      style={{ 
 
-  const StatCard = ({ icon: Icon, title, value, unit, description, color }) => (
-    <div className={`bg-white p-4 rounded-xl shadow-md border-t-4 border-${color}-500`}>
-        <div className="flex items-center space-x-3">
-            <Icon className={`w-6 h-6 text-${color}-600`} />
-            <h4 className="text-lg font-semibold text-gray-800">{title}</h4>
-        </div>
-        <p className="text-3xl font-extrabold text-gray-900 mt-2">{value}{unit}</p>
-        <p className="text-xs text-gray-500 mt-1">{description}</p>
-    </div>
-  );
+                          width: `${animatedWidths[item.provider] || 0}%` 
+                      }}
+                    ></div>
+                  </div>
 
-  return (
-    <div className="space-y-8 p-4 max-w-7xl mx-auto">
-      <h2 className="text-2xl font-bold text-gray-800">Barrier-Free NYC</h2>
-      <p className="text-sm text-gray-600">Analysis of Wheelchair Accessible Vehicle (WAV) request fulfillment, volume, and wait times across ride-hail platforms.</p>
-      <section className="space-y-4">
-        <h3 className="text-xl font-semibold text-green-700 flex items-center"><Zap className="w-5 h-5 mr-2"/> WAV Fulfillment Performance</h3>
-        <p className="text-sm text-gray-600">The historical percentage of requested WAV trips that were successfully matched and fulfilled.</p>
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {wavFulfillment.map(item => (
-            <div key={item.provider} className="bg-green-50 p-4 rounded-lg shadow border border-green-200">
-              <span className="font-semibold text-green-800">{item.provider}</span>
-              <p className="text-2xl font-bold mt-1 mb-2 text-gray-900">{item.fulfillmentRate.toFixed(2)}%</p>
-              <div className="w-full bg-gray-200 rounded-full h-2.5">
-                <div className="bg-green-600 h-2.5 rounded-full transition-all duration-500" style={{ width: `${item.fulfillmentRate}%` }}></div>
-              </div>
-              <p className="text-xs text-gray-500 mt-2">Total WAV Requests Last Month: {item.totalRequests.toLocaleString()}</p>
+
+                  <p className="text-xs text-gray-500 mt-2">
+                    Total WAV Requests Last Month: {item.totalRequests.toLocaleString()}
+                  </p>
+                </div>
+              ))}
             </div>
-          ))}
         </div>
-      </section>
-
-      <section className="space-y-4">
-        <h3 className="text-xl font-semibold text-indigo-700 flex items-center"><Timer className="w-5 h-5 mr-2"/> Wait Time Disparity (Seconds)</h3>
-        <p className="text-sm text-gray-600">Compares the average wait time for fulfilled WAV requests versus standard non-WAV requests.</p>
+    );
+};
+const WaitTimeSection = ({ waitTime }) => (
+    <div className="space-y-4">
+        <h4 className="text-xl font-semibold text-indigo-700 flex items-center mb-4">
+            <Timer className="w-5 h-5 mr-2"/> Wait Time Disparity (Seconds)
+        </h4>
+        <p className="text-sm text-gray-600">
+            Compares the average wait time for fulfilled Wheelchair Accessible Vehicle (WAV) requests versus standard non-WAV requests.
+        </p>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {waitTime.map(item => (
@@ -1531,30 +1561,140 @@ const AccessibilityReportPage = ({ accessibilityData, loading, handleFetchAccess
                 </div>
             ))}
         </div>
-      </section>
-
-      <section className="space-y-4">
-        <h3 className="text-xl font-semibold text-red-700 flex items-center"><MapPin className="w-5 h-5 mr-2"/> WAV Request Volume</h3>
-        <p className="text-sm text-gray-600">The percentage of a provider's total trips that were initiated as WAV requests (for context).</p>
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {requestPercentages.map(item => (
-                <StatCard 
-                    key={item.provider}
-                    icon={Bus}
-                    title={item.provider}
-                    value={item.percentOfWavRequest.toFixed(2)}
-                    unit="%"
-                    description={`WAV requests out of ${item.totalTrips.toLocaleString()} total trips.`}
-                    color="red"
-                />
-            ))}
-        </div>
-      </section>
-      
     </div>
-  );
-}
+);
+
+const RequestVolumeSection = ({ requestPercentages }) => {
+    const StatCard = ({ icon: Icon, title, value, unit, description, color }) => (
+        <div className={`bg-white p-4 rounded-xl shadow-md border-t-4 border-${color}-500`}>
+            <div className="flex items-center space-x-3">
+                <Icon className={`w-6 h-6 text-${color}-600`} />
+                <h4 className="text-lg font-semibold text-gray-800">{title}</h4>
+            </div>
+            <p className="text-3xl font-extrabold text-gray-900 mt-2">{value}{unit}</p>
+            <p className="text-xs text-gray-500 mt-1">{description}</p>
+        </div>
+      );
+
+    return (
+        <div className="space-y-4">
+            <h4 className="text-xl font-semibold text-red-700 flex items-center mb-4">
+                <MapPin className="w-5 h-5 mr-2"/> WAV Request Volume
+            </h4>
+            <p className="text-sm text-gray-600">
+                The percentage of a provider's total trips that were initiated as WAV requests (for context).
+            </p>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {requestPercentages.map(item => (
+                    <StatCard 
+                        key={item.provider}
+                        icon={Bus}
+                        title={item.provider}
+                        value={item.percentOfWavRequest.toFixed(2)}
+                        unit="%"
+                        description={`WAV requests out of ${item.totalTrips.toLocaleString()} total trips.`}
+                        color="red"
+                    />
+                ))}
+            </div>
+        </div>
+    );
+};
+
+const AccessibilityReportPage = ({ accessibilityData, loading, handleFetchAccessibility }) => {
+    const [activeSection, setActiveSection] = useState('fulfillment'); // 'fulfillment', 'wait-time', 'volume'
+
+    useEffect(() => {
+        if (accessibilityData === null && !loading) {
+            handleFetchAccessibility();
+        }
+    }, [accessibilityData, loading, handleFetchAccessibility]);
+
+    if (loading && !accessibilityData) {
+        return (
+        <div className="w-full space-y-6 p-4">
+            <h2 className="text-2xl font-bold text-gray-800">Accessibility Report</h2>
+            <div className="bg-gray-100 p-6 rounded-lg h-48 flex items-center justify-center text-gray-500 border border-gray-200">
+                <LoadingSpinner color="text-gray-500" /> Compiling Comprehensive Accessibility Report...
+            </div>
+        </div>
+        );
+    }
+
+    if (!accessibilityData) {
+        return (
+            <div className="w-full space-y-6 p-4">
+                <h2 className="text-2xl font-bold text-gray-800">Accessibility Report</h2>
+                <div className="text-red-600 p-4 border border-red-300 bg-red-50 rounded-lg">
+                    <p className='font-semibold'>Error: Could not load accessibility data.</p>
+                    <p className='text-sm'>Please ensure the Node.js backend is running and the PostgreSQL connection details are correct.</p>
+                </div>
+            </div>
+        );
+    }
+
+    const { wavFulfillment, requestPercentages, waitTime } = accessibilityData;
+
+    const sections = [
+        { id: 'fulfillment', name: 'Fulfillment Rate', icon: Zap, color: 'green', data: wavFulfillment },
+        { id: 'wait-time', name: 'Wait Time Disparity', icon: Timer, color: 'indigo', data: waitTime },
+        { id: 'volume', name: 'WAV Request Volume', icon: MapPin, color: 'red', data: requestPercentages },
+    ];
+
+    const renderSection = () => {
+        switch (activeSection) {
+            case 'fulfillment':
+                return <WavFulfillmentSection wavFulfillment={wavFulfillment} />;
+            case 'wait-time':
+                // The waitTime data structure in the original code had avgWaitMinutes.
+                // Assuming backend updates: waitTime now has avgWavWait and avgNonWavWait
+                return <WaitTimeSection waitTime={waitTime} />; 
+            case 'volume':
+                return <RequestVolumeSection requestPercentages={requestPercentages} />;
+            default:
+                return null;
+        }
+    };
+
+    return (
+        <div className="space-y-8 p-4 max-w-7xl mx-auto">
+            <h2 className="text-2xl font-bold text-gray-800">Barrier-Free NYC</h2>
+            <p className="text-sm text-gray-600">
+                A comprehensive report assessing how effectively ride-hail platforms are meeting the demand for Wheelchair Accessible Vehicles.
+            </p>
+
+            {/* Section Navigation Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {sections.map(section => (
+                    <button
+                        key={section.id}
+                        onClick={() => setActiveSection(section.id)}
+                        className={`
+                            p-5 rounded-xl text-left shadow-lg transition-all border-2
+                            ${activeSection === section.id 
+                                ? `bg-${section.color}-600 text-white border-${section.color}-700 shadow-${section.color}-300/50` 
+                                : `bg-white text-gray-800 border-gray-200 hover:border-${section.color}-400 hover:shadow-lg`
+                            }
+                        `}
+                    >
+                        <section.icon className={`w-6 h-6 mb-2 ${activeSection === section.id ? 'text-white' : `text-${section.color}-600`}`} />
+                        <h3 className="text-lg font-bold">{section.name}</h3>
+                        <p className={`text-xs mt-1 ${activeSection === section.id ? 'text-white/80' : 'text-gray-500'}`}>
+                            {section.id === 'fulfillment' && 'Success rate of WAV requests.'}
+                            {section.id === 'wait-time' && 'WAV vs. standard trip wait times.'}
+                            {section.id === 'volume' && 'WAV request percentage of total trips.'}
+                        </p>
+                    </button>
+                ))}
+            </div>
+ 
+            <div className="bg-white p-6 rounded-xl shadow-2xl border border-gray-100 min-h-[300px]">
+                {renderSection()}
+            </div>
+        </div>
+    );
+};
 
 const TIME_SLOT_OPTIONS = [
     { key: 'morning', name: 'Morning Peak (7 AM - 10 AM)' },
@@ -1583,7 +1723,7 @@ const RouteHotspotsPage = ({ hotspots, loading, onFetchRouteHotspots }) => {
     <div className="space-y-6 p-4 max-w-4xl mx-auto">
       <h2 className="text-2xl font-bold text-gray-800 border-b pb-2">City Pressure Points</h2>
       <p className="text-md text-gray-600">
-        Select a 24-hour time slot to instantly view the top 10 busiest taxi and ride-share routes during that period.
+        Quickly identify the top 10 highest-demand routes to understand where the city is moving and when!
       </p>
 
       <form

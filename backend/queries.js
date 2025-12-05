@@ -280,6 +280,18 @@ const QUERIES = {
             AND pickup_datetime IS NOT NULL
         GROUP BY service_provider;
     `,
+
+    GET_WAV_FULFILLMENT_RATE_MV: `
+        SELECT * FROM mv_wav_fulfillment_rate;
+    `,
+
+    GET_WAV_REQUEST_PERCENTAGE_MV: `
+        SELECT * FROM mv_wav_request_percentage;
+    `,
+
+    GET_WAV_WAIT_TIME_MV: `
+        SELECT * FROM mv_wav_wait_time;
+    `,
     
     GET_RECOMMEND_DEST: `
         WITH combined_trips AS (
