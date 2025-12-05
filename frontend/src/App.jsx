@@ -664,7 +664,7 @@ const ZoneAutocomplete = ({
 
 
 
-const API_BASE_URL = 'http://98.93.51.204/api'; //server url
+const API_BASE_URL = 'http://98.92.154.115/api'; //server url
 
 
 const LoadingSpinner = ({ color = 'text-white' }) => (
