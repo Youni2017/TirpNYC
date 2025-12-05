@@ -979,6 +979,7 @@ const TripPlannerPage = ({
                   <option value="">Select service provider</option>
                   <option value="Uber">Uber</option>
                   <option value="Lyft">Lyft</option>
+                  <option value="Both">Both</option>
                 </select>
               </div>
             )}

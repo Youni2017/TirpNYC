@@ -203,13 +203,21 @@ const queryFHVData = async (startId, endId, startTime, endTime, serviceProvider)
   }
 
   // Add service provider condition if provided
-  // Convert display name (Uber/Lyft) to code (HV0003/HV0005) for database query
+  // Convert display name (Uber/Lyft/Both) to code (HV0003/HV0005) for database query
   if (serviceProvider) {
-    const providerCode = PROVIDER_CODE_MAP[serviceProvider] || serviceProvider;
-    console.log(`[queryFHVData] Converting "${serviceProvider}" -> "${providerCode}"`);
-    timeConditions.push(`service_provider = $${paramIndex}`);
-    queryParams.push(providerCode);
-    paramIndex++;
+    if (serviceProvider === 'Both') {
+      // Query for both Uber and Lyft
+      console.log(`[queryFHVData] Querying for both providers: HV0003 (Uber) and HV0005 (Lyft)`);
+      timeConditions.push(`service_provider IN ($${paramIndex}, $${paramIndex + 1})`);
+      queryParams.push('HV0003', 'HV0005');
+      paramIndex += 2;
+    } else {
+      const providerCode = PROVIDER_CODE_MAP[serviceProvider] || serviceProvider;
+      console.log(`[queryFHVData] Converting "${serviceProvider}" -> "${providerCode}"`);
+      timeConditions.push(`service_provider = $${paramIndex}`);
+      queryParams.push(providerCode);
+      paramIndex++;
+    }
   }
 
   const timeWhereClause = timeConditions.length > 0 
@@ -248,14 +256,24 @@ const queryFHVData = async (startId, endId, startTime, endTime, serviceProvider)
       console.log(`[queryFHVData DEBUG] Total FHV trips for ${startId} -> ${endId}:`, debugResult.rows[0]?.total_count || 0);
       
       if (serviceProvider) {
-        const providerCode = PROVIDER_CODE_MAP[serviceProvider] || serviceProvider;
-        const providerDebugQuery = `
-          SELECT COUNT(*) as provider_count
-          FROM fhv_trip
-          WHERE pickup_location = $1 AND dropoff_location = $2 AND service_provider = $3;
-        `;
-        const providerDebugResult = await pool.query(providerDebugQuery, [startId, endId, providerCode]);
-        console.log(`[queryFHVData DEBUG] Trips for provider "${providerCode}":`, providerDebugResult.rows[0]?.provider_count || 0);
+        if (serviceProvider === 'Both') {
+          const providerDebugQuery = `
+            SELECT COUNT(*) as provider_count
+            FROM fhv_trip
+            WHERE pickup_location = $1 AND dropoff_location = $2 AND service_provider IN ($3, $4);
+          `;
+          const providerDebugResult = await pool.query(providerDebugQuery, [startId, endId, 'HV0003', 'HV0005']);
+          console.log(`[queryFHVData DEBUG] Trips for both providers (HV0003, HV0005):`, providerDebugResult.rows[0]?.provider_count || 0);
+        } else {
+          const providerCode = PROVIDER_CODE_MAP[serviceProvider] || serviceProvider;
+          const providerDebugQuery = `
+            SELECT COUNT(*) as provider_count
+            FROM fhv_trip
+            WHERE pickup_location = $1 AND dropoff_location = $2 AND service_provider = $3;
+          `;
+          const providerDebugResult = await pool.query(providerDebugQuery, [startId, endId, providerCode]);
+          console.log(`[queryFHVData DEBUG] Trips for provider "${providerCode}":`, providerDebugResult.rows[0]?.provider_count || 0);
+        }
       }
     }
 
