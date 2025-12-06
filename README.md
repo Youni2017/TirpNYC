@@ -60,7 +60,7 @@ TirpNYC/
 
 ---
 
-## 🚀 How to Run the Project Locally
+## How to Run the Project Locally
 
 ### Prerequisites
 
@@ -71,7 +71,7 @@ TirpNYC/
 
 ### Branch Information
 
-- **`fix-recommendation`**: Main development branch for running the project locally
+- **`main`**: Main development branch for running the project locally
 - **`deployment`**: Production branch configured with Docker for deployment
 
 ### Setup Instructions
@@ -84,7 +84,7 @@ cd TirpNYC
 
 #### 2. Checkout the Local Development Branch
 ```bash
-git checkout fix-recommendation
+git checkout main
 ```
 
 #### 3. Set Up the Backend
@@ -123,7 +123,7 @@ docker run -p 3000:3000 tripnyc
 
 ---
 
-## 📊 Dataset Overview
+## Dataset Overview
 
 TripNYC uses **official NYC TLC trip record data** for **August 2024**.  
 The raw files are provided in **PARQUET** format and are publicly available:
@@ -191,7 +191,7 @@ These PARQUET files are downloaded and converted into CSV using `pandas` before 
 
 ---
 
-## 👥 Contributors
+## Contributors
 
 - [Youni Chen](https://github.com/Youni2017)
 - [Feiyang Jin](https://github.com/feiyanj)
@@ -200,7 +200,7 @@ These PARQUET files are downloaded and converted into CSV using `pandas` before 
 
 ---
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 Data provided by the NYC Taxi & Limousine Commission (TLC).
 
