@@ -217,19 +217,19 @@ const queryFHVData = async (startId, endId, startTime, endTime, serviceProvider)
     paramIndex++;
   }
 
-  // Add service provider condition if provided
-  // Convert display name (Uber/Lyft/Both) to code (HV0003/HV0005) for database query
+  // Build service provider condition separately
+  let providerCondition = '';
   if (serviceProvider) {
     if (serviceProvider === 'Both') {
-      // Query for both Uber and Lyft
+      // Query for both Uber and Lyft using OR
       console.log(`[queryFHVData] Querying for both providers: HV0003 (Uber) and HV0005 (Lyft)`);
-      timeConditions.push(`service_provider IN ($${paramIndex}, $${paramIndex + 1})`);
+      providerCondition = `AND (service_provider = $${paramIndex} OR service_provider = $${paramIndex + 1})`;
       queryParams.push('HV0003', 'HV0005');
       paramIndex += 2;
     } else {
       const providerCode = PROVIDER_CODE_MAP[serviceProvider] || serviceProvider;
       console.log(`[queryFHVData] Converting "${serviceProvider}" -> "${providerCode}"`);
-      timeConditions.push(`service_provider = $${paramIndex}`);
+      providerCondition = `AND service_provider = $${paramIndex}`;
       queryParams.push(providerCode);
       paramIndex++;
     }
@@ -249,16 +249,35 @@ const queryFHVData = async (startId, endId, startTime, endTime, serviceProvider)
     WHERE
       pickup_location = $1
       AND dropoff_location = $2
-      ${timeWhereClause};
+      ${timeWhereClause}
+      ${providerCondition};
   `;
 
   console.log(`[queryFHVData] Query params:`, queryParams);
   console.log(`[queryFHVData] SQL query:`, fhvQuery);
+  console.log(`[queryFHVData] Service provider: "${serviceProvider}"`);
 
   try {
     const fhvResult = await pool.query(fhvQuery, queryParams);
     console.log(`[queryFHVData] Result rows:`, fhvResult.rows.length);
     console.log(`[queryFHVData] Result data:`, fhvResult.rows[0]);
+    
+    // Additional debug for "Both" case
+    if (serviceProvider === 'Both') {
+      console.log(`[queryFHVData DEBUG] "Both" selected - checking raw data counts:`);
+      // Use the same query structure to verify data exists
+      const countQuery = `
+        SELECT COUNT(*) as trip_count
+        FROM fhv_trip
+        WHERE
+          pickup_location = $1
+          AND dropoff_location = $2
+          ${timeWhereClause}
+          ${providerCondition};
+      `;
+      const countResult = await pool.query(countQuery, queryParams);
+      console.log(`[queryFHVData DEBUG] Total trips matching "Both" criteria: ${countResult.rows[0]?.trip_count || 0}`);
+    }
 
     // Debug: Check if there's ANY FHV data for these locations
     if (fhvResult.rows.length === 0 || fhvResult.rows[0].avg_total_amount === null) {
