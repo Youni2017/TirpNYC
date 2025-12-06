@@ -1,4 +1,36 @@
 const QUERIES = {
+    GET_TRIP_TRAVEL_TIME: `
+        SELECT
+            ROUND(AVG(travel_time_seconds), 0) AS overall_avg_travel_time_seconds
+        FROM
+        (
+            SELECT
+                EXTRACT(EPOCH FROM (dropoff_datetime - pickup_datetime)) AS travel_time_seconds
+            FROM yellow_taxi_trip
+            WHERE 
+                pickup_location = $1         
+                AND dropoff_location = $2
+
+            UNION ALL
+
+            SELECT
+                EXTRACT(EPOCH FROM (dropoff_datetime - pickup_datetime)) AS travel_time_seconds
+            FROM green_taxi_trip
+            WHERE 
+                pickup_location = $1         
+                AND dropoff_location = $2
+
+            UNION ALL
+
+            SELECT
+                EXTRACT(EPOCH FROM (dropoff_datetime - pickup_datetime)) AS travel_time_seconds
+            FROM fhv_trip
+            WHERE 
+                pickup_location = $1         
+                AND dropoff_location = $2
+        ) AS all_trips;
+    `,
+
     GET_AVG_TRAVEL_TIME: `
         SELECT
             doo.zone_name AS arrival_zone,

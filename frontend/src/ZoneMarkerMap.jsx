@@ -6,6 +6,8 @@ import {
   Popup,
   CircleMarker,
   Tooltip,
+  Polyline,
+  useMap,
 } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -22,6 +24,54 @@ L.Icon.Default.mergeOptions({
 
 const defaultIcon = new L.Icon.Default();
 
+// Helper component to fix map initialization issues
+const MapInitializer = () => {
+  const map = useMap();
+
+  useEffect(() => {
+    // Fix click detection by recalculating map size after render
+    const timer = setTimeout(() => {
+      map.invalidateSize();
+    }, 100);
+
+    // Increase tap tolerance to prevent accidental drags on click
+    if (map.tap) {
+      map.tap.disable();
+      map.tap.enable({ tapTolerance: 15 });
+    }
+
+    return () => clearTimeout(timer);
+  }, [map]);
+
+  return null;
+};
+
+// Helper component to update map bounds when route is selected or single zone is selected
+const MapBoundsUpdater = ({ startZone, endZone, selectedZone }) => {
+  const map = useMap();
+
+  useEffect(() => {
+    if (startZone && endZone) {
+      // Create bounds that include both markers (for Trip Planner and Route Hotspots)
+      const bounds = L.latLngBounds(
+        [startZone.lat, startZone.lng],
+        [endZone.lat, endZone.lng]
+      );
+      
+      // Fit the map to show both markers with some padding
+      map.fitBounds(bounds, { padding: [50, 50], maxZoom: 13 });
+    } else if (selectedZone) {
+      // Center on single zone (for Traffic Dashboard)
+      map.setView([selectedZone.lat, selectedZone.lng], 13, {
+        animate: true,
+        duration: 0.5
+      });
+    }
+  }, [map, startZone, endZone, selectedZone]);
+
+  return null;
+};
+
 /**
  * props:
  zones: [{ id, name, lat, lng }]
@@ -29,6 +79,7 @@ const defaultIcon = new L.Icon.Default();
  selectedZoneId:  the editing point（Traffic & Planner share）
  startZoneId:     Trip Planner's start
  endZoneId:       Trip Planner's end
+ showOnlyRoute:   If true, only show start/end pins (for Route Hotspots). If false, show all pins (for Trip Planner)
  */
 const ZoneMarkerMap = ({
   zones,
@@ -36,6 +87,7 @@ const ZoneMarkerMap = ({
   selectedZoneId = null,
   startZoneId = null,
   endZoneId = null,
+  showOnlyRoute = false,
 }) => {
   const center = [40.7128, -74.006]; // NYC
 
@@ -61,19 +113,56 @@ const ZoneMarkerMap = ({
     endZoneId &&
     Number(startZoneId) === Number(endZoneId);
 
+  // Find the actual zone objects for start, end, and selected
+  const startZone = startZoneId ? zones.find(z => z.id === Number(startZoneId)) : null;
+  const endZone = endZoneId ? zones.find(z => z.id === Number(endZoneId)) : null;
+  const selectedZone = selectedZoneId ? zones.find(z => z.id === Number(selectedZoneId)) : null;
+
+  // Filter zones based on showOnlyRoute prop
+  const zonesToRender = showOnlyRoute 
+    ? zones.filter(zone => {
+        // Only show start, end, or selected zones when in "route only" mode
+        const isStart = startZoneId && zone.id === Number(startZoneId);
+        const isEnd = endZoneId && zone.id === Number(endZoneId);
+        const isSelectedOnly = selectedZoneId && zone.id === Number(selectedZoneId) && !isStart && !isEnd;
+        
+        return isStart || isEnd || isSelectedOnly;
+      })
+    : zones; // Show all zones for Trip Planner
+
   return (
     <MapContainer
       center={center}
       zoom={11}
       style={{ width: '100%', height: '100%' }}
       scrollWheelZoom={true}
+      tapTolerance={15}
+      tap={true}
     >
+      <MapInitializer />
+      <MapBoundsUpdater startZone={startZone} endZone={endZone} selectedZone={selectedZone} />
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
 
-      {zones.map((zone) => {
+      {/* Draw line connecting start and end */}
+      {startZone && endZone && !isSameStartEnd && (
+        <Polyline
+          positions={[
+            [startZone.lat, startZone.lng],
+            [endZone.lat, endZone.lng]
+          ]}
+          pathOptions={{
+            color: '#3b82f6',
+            weight: 3,
+            opacity: 0.7,
+            dashArray: '10, 10'
+          }}
+        />
+      )}
+
+      {zonesToRender.map((zone) => {
         const isStart = !!startZoneId && zone.id === Number(startZoneId);
         const isEnd = !!endZoneId && zone.id === Number(endZoneId);
         const isSelectedOnly =
