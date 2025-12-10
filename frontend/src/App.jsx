@@ -664,7 +664,7 @@ const ZoneAutocomplete = ({
 
 
 
-const API_BASE_URL = 'http://44.210.80.215/api'; //server url
+const API_BASE_URL = 'http://98.82.141.35/api'; //server url
 
 
 const LoadingSpinner = ({ color = 'text-white' }) => (
@@ -1248,7 +1248,7 @@ const TripPlannerPage = ({
                     onClick={() => setEndLocation(rec.zone_id.toString())}
                   >
                     <p className="text-lg font-bold text-blue-700">
-                      {rec.arrival_zone}xf
+                      {rec.arrival_zone}
                     </p>
                   </div>
                 ))}
